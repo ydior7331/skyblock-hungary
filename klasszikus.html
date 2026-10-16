@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>try{var q=new URLSearchParams(location.search).get('d');if(q)localStorage.setItem('shu-design',q);var d=localStorage.getItem('shu-design');if(!q&&d&&d!=='klasszikus'){var m={egi:'index.html',ejszaka:'ejszaka.html',klasszikus:'klasszikus.html'};if(m[d])location.replace(m[d]);}}catch(e){}</script>
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Skyblock Hungary</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Skyblock Hungary (SHU): magyar céh a Hypixel SkyBlockon. Közös dungeonök, slayer-estek, segítség kezdőknek.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Pixelify+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: the page is a set of SkyBlock objects (an item tooltip, chest-menu sheets, a receipt slip, a reply card)
+   laid on a night-green ground and tied with the Hungarian red-white-green ribbon. One deliberate dark world. */
+:root {
+  color-scheme: dark;
+  --ground: #13201a;
+  --ground-2: #1a2b23;
+  --paper: #e8eae3;
+  --paper-2: #d9ddd3;
+  --ink: #18261f;
+  --ink-soft: #46574d;
+  --on-ground: #e8eae3;
+  --on-ground-soft: #b4c2b9;
+  --accent: #c8283a;
+  --accent-press: #a51f2f;
+  --accent-ink: #ffffff;
+  --hu-red: #ce2939;
+  --hu-white: #ffffff;
+  --hu-green: #477050;
+  --mark: #ffe066;
+  /* Minecraft chat colours, used only inside game UI fragments */
+  --mc-gold: #ffaa00;
+  --mc-gray: #aaaaaa;
+  --mc-dark: #6b6b6b;
+  --mc-green: #55ff55;
+  --mc-yellow: #ffff55;
+  --mc-red: #ff5555;
+  --mc-white: #ffffff;
+  --tip-bg: #100010;
+  --tip-edge: #2a0d63;
+
+  --f-text: "Zilla Slab", "Rockwell", "Roboto Slab", Georgia, serif;
+  --f-game: "Pixelify Sans", "Zilla Slab", system-ui, sans-serif;
+
+  --step-small: 0.875rem;
+  --step-body: 1.0625rem;
+  --step-lead: 1.375rem;
+  --step-head: clamp(2.25rem, 1.4rem + 3.4vw, 4.25rem);
+
+  --gutter: 24px;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--ground);
+  color: var(--on-ground);
+  font-family: var(--f-text);
+  font-size: var(--step-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+::selection { background: var(--mark); color: var(--ink); }
+:focus-visible { outline: 3px solid var(--mark); outline-offset: 3px; }
+a { color: inherit; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+h1, h2, h3 { font-weight: 600; letter-spacing: -0.025em; line-height: 1.0; text-wrap: balance; margin: 0; }
+p { margin: 0; text-wrap: pretty; }
+img, canvas { max-width: 100%; }
+.wrap {
+  padding-left: max(var(--gutter), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
+}
+.px { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+.ph { background: var(--mark); color: var(--ink); padding: 0 0.25em; font-style: normal; }
+
+/* Buttons: square, flat, one fill */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.6em;
+  min-height: 52px; padding: 0 28px;
+  background: var(--accent); color: var(--accent-ink);
+  font: 600 var(--step-body)/1 var(--f-text); text-decoration: none;
+  border: 0; cursor: pointer;
+  transition: background-color 160ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.btn:hover { background: var(--accent-press); }
+.btn:active { transform: scale(0.97); }
+.btn svg { width: 18px; height: 18px; flex: none; }
+
+/* Ribbon: the Hungarian tricolour as the page's one ornament */
+.ribbon { display: flex; height: 56px; overflow: hidden; }
+.ribbon i { flex: 0 0 28px; }
+.ribbon i:nth-child(3n+1) { background: var(--hu-red); }
+.ribbon i:nth-child(3n+2) { background: var(--hu-white); }
+.ribbon i:nth-child(3n) { background: var(--hu-green); }
+.ribbon.thin { height: 8px; }
+
+/* Stepped (block) edges for paper objects */
+.edge-b, .edge-t { height: 12px; background-repeat: repeat-x; background-size: 24px 12px; }
+.edge-b { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12'%3E%3Cpath d='M0 0h24v6h-6v6h-12v-6h-6z' fill='%23e8eae3'/%3E%3C/svg%3E"); }
+.edge-t { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12'%3E%3Cpath d='M0 12h24v-6h-6v-6h-12v6h-6z' fill='%23e8eae3'/%3E%3C/svg%3E"); }
+
+/* ---------- Hero ---------- */
+.hero {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px;
+  padding: 12px max(12px, env(safe-area-inset-right, 0px)) 12px max(12px, env(safe-area-inset-left, 0px));
+  min-height: min(100svh, 900px);
+}
+.card {
+  background: var(--paper); color: var(--ink);
+  display: flex; flex-direction: column; min-width: 0;
+}
+.card-body {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 28px; padding: 48px 32px 32px;
+}
+.wordmark { width: min(300px, 70%); height: auto; }
+.hero h1 { font-size: clamp(2.5rem, 1.4rem + 3.4vw, 4.25rem); max-width: 12ch; }
+.hero .lead { font-size: var(--step-body); max-width: 36ch; color: var(--ink); }
+.hero-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 28px; padding: 0 24px 28px; font-size: var(--step-small); }
+.hero-links a { color: var(--ink-soft); text-decoration: none; padding: 6px 2px; transition: color 160ms; }
+.hero-links a:hover { color: var(--ink); text-decoration: underline; }
+.scene-wrap { position: relative; min-width: 0; }
+.scene {
+  position: sticky; top: 12px; height: calc(min(100svh, 900px) - 24px);
+  overflow: hidden; background: #0d1530;
+}
+.scene canvas { position: absolute; inset: 0; width: 100%; height: 100%; transition: opacity 1.6s ease; }
+.scene canvas.off { opacity: 0; }
+.tooltip {
+  position: absolute; left: 6%; top: 7%; max-width: min(340px, 86%);
+  background: var(--tip-bg); border: 3px solid var(--tip-edge); outline: 3px solid var(--tip-bg);
+  padding: 12px 16px 14px; font: 400 17px/1.35 var(--f-game); color: var(--mc-gray);
+ 
+  animation: bob 6s ease-in-out infinite;
+}
+.tooltip p { margin: 0; }
+.tooltip .gap { height: 0.7em; }
+.c-gold { color: var(--mc-gold); } .c-dark { color: var(--mc-dark); } .c-green { color: var(--mc-green); }
+.c-yellow { color: var(--mc-yellow); } .c-white { color: var(--mc-white); } .c-red { color: var(--mc-red); }
+.tooltip .name { font-size: 22px; font-weight: 600; }
+.tooltip .rarity { font-weight: 600; letter-spacing: 0.04em; }
+@keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+/* ---------- Letter ---------- */
+.letter-sec { padding-block: 168px 160px; display: grid; justify-items: center; }
+.sheet { width: min(640px, 100%); }
+.sheet-body { background: var(--paper); color: var(--ink); padding: 60px; display: grid; gap: 22px; }
+.avatar { width: 48px; height: 48px; border-radius: 50%; overflow: hidden; background: #7fb2ff; }
+.avatar canvas { width: 100%; height: 100%; }
+.sheet-body p { font-size: 1.0625rem; line-height: 1.6; }
+.sign { display: grid; gap: 2px; margin-top: 8px; }
+.sign b { font: italic 500 var(--step-lead)/1.2 var(--f-text); }
+.sign span { font-size: var(--step-small); color: var(--ink-soft); }
+.tear {
+  margin-top: 14px; background: var(--paper); color: var(--ink);
+  min-height: 72px; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+  position: relative;
+}
+.tear::before { content: ""; position: absolute; left: 0; right: 0; top: -9px; border-top: 5px dotted var(--paper); }
+.tear .btn { min-height: 44px; padding: 0 20px; }
+
+/* ---------- Program sheet (list) ---------- */
+.menu-sec { background: var(--ground-2); padding-block: 140px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; align-items: start; }
+.menu-side { grid-column: 1 / span 5; display: grid; gap: 24px; position: sticky; top: 48px; }
+.menu-side h2 { font-size: var(--step-head); }
+.menu-side p { color: var(--on-ground); max-width: 34ch; font-size: var(--step-lead); line-height: 1.4; }
+.menu { grid-column: 7 / span 6; max-width: 640px; width: 100%; justify-self: end; }
+.menu-body { background: var(--paper); color: var(--ink); padding: 56px 64px; text-align: center; display: grid; gap: 52px; }
+.menu-head { display: grid; gap: 10px; }
+.menu-head h3 { font-size: 2.75rem; }
+.menu-head p { font-size: var(--step-small); color: var(--ink-soft); }
+.group { display: grid; gap: 16px; }
+.group h4 { margin: 0 0 4px; font: 600 var(--step-lead)/1.1 var(--f-text); }
+.item { display: grid; grid-template-columns: 1fr auto; column-gap: 16px; text-align: left; max-width: 440px; width: 100%; margin: 0 auto; }
+.item b { font-weight: 500; font-size: 1.0625rem; }
+.item .when { font-variant-numeric: tabular-nums; font-size: 1.0625rem; text-align: right; white-space: nowrap; }
+.item small { grid-column: 1 / -1; font-size: var(--step-small); color: var(--ink-soft); line-height: 1.4; margin-top: 2px; }
+.menu-foot { font-size: var(--step-body); line-height: 1.5; }
+
+/* ---------- Join slip (how it works) ---------- */
+.join-sec { padding-block: 168px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; align-items: start; }
+.join-text { grid-column: 1 / span 5; display: grid; gap: 28px; }
+.join-text h2 { font-size: var(--step-head); }
+.join-text > p { max-width: 32ch; font-size: var(--step-lead); line-height: 1.4; }
+.slip { grid-column: 7 / span 5; width: 100%; max-width: 480px; }
+.slip-body { background: var(--paper); color: var(--ink); padding: 36px 32px 0; font-variant-numeric: tabular-nums; }
+.slip h3 { font: 600 var(--step-body)/1.2 var(--f-text); margin-top: 28px; letter-spacing: 0; }
+.slip h3:first-child { margin-top: 0; }
+.slip ol { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
+.slip li { display: flex; align-items: baseline; gap: 8px; font-size: var(--step-body); }
+.slip li .what { min-width: 0; }
+.slip li .dots { flex: 1; border-bottom: 4px dotted var(--ink-soft); transform: translateY(-4px); min-width: 16px; opacity: 0.55; }
+.slip li .t { white-space: nowrap; }
+.slip code { font: 600 0.95em var(--f-game); background: var(--paper-2); padding: 1px 6px; }
+.slip-final {
+  margin: 28px -32px 0; min-height: 48px; background: var(--ink); color: var(--paper);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 32px; font-weight: 500;
+}
+.zig { height: 14px; background-repeat: repeat-x; background-size: 20px 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='14'%3E%3Cpath d='M0 0h20v4l-10 10l-10-10z' fill='%2318261f'/%3E%3C/svg%3E"); }
+
+/* Requirement checker: a chest-menu fragment */
+.checker {
+  background: #c6c6c6; color: #3f3f3f; font-family: var(--f-game);
+  border-top: 4px solid #ffffff; border-left: 4px solid #ffffff; border-bottom: 4px solid #555555; border-right: 4px solid #555555;
+  padding: 18px 20px 20px; display: grid; gap: 14px; max-width: 460px;
+}
+.checker h3 { font: 600 var(--step-body)/1.2 var(--f-game); letter-spacing: 0; color: #3f3f3f; }
+.checker .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.checker label { display: grid; gap: 6px; font-size: var(--step-small); }
+.checker input {
+  font: 600 var(--step-lead)/1 var(--f-game); width: 100%; min-height: 46px; padding: 6px 10px;
+  background: #8b8b8b; color: #ffffff;
+  border-top: 3px solid #373737; border-left: 3px solid #373737; border-bottom: 3px solid #ffffff; border-right: 3px solid #ffffff;
+  border-radius: 0; appearance: textfield;
+}
+.checker input::-webkit-outer-spin-button, .checker input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.checker input:focus-visible { outline: 3px solid var(--mc-yellow); outline-offset: 1px; }
+.verdict {
+  font: 400 1.0625rem/1.4 var(--f-game); background: var(--tip-bg); color: var(--mc-gray);
+  padding: 10px 14px; min-height: 48px;
+  transition: transform 200ms var(--ease-out);
+}
+.verdict.pop { animation: pop 260ms var(--ease-out); }
+@keyframes pop { from { transform: scale(0.97); } to { transform: scale(1); } }
+.checker .note { font: 400 var(--step-small)/1.4 var(--f-text); color: #3f3f3f; }
+
+/* ---------- FAQ ---------- */
+.faq-sec { background: var(--paper); color: var(--ink); display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; padding-bottom: 140px; }
+.faq-col { grid-column: 1 / span 5; padding-top: 140px; display: grid; gap: 28px; align-content: start; }
+.faq-col h2 { font-size: 2.75rem; }
+.facts { display: grid; gap: 8px; font-size: var(--step-body); margin: 0; }
+.facts div { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.facts dt { color: var(--ink-soft); }
+.facts dd { margin: 0; font-weight: 500; }
+.copy {
+  font: 600 var(--step-small)/1 var(--f-game); background: var(--ink); color: var(--paper); border: 0; padding: 7px 10px; cursor: pointer;
+  transition: background-color 160ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.copy:hover { background: #2c3d34; }
+.copy:active { transform: scale(0.96); }
+.qa { display: grid; gap: 4px; }
+.qa details { padding-block: 12px; }
+.qa summary {
+  list-style: none; cursor: pointer; font-size: var(--step-lead); font-weight: 500; line-height: 1.3;
+  display: flex; justify-content: space-between; gap: 16px; align-items: center; min-height: 44px;
+}
+.qa summary::-webkit-details-marker { display: none; }
+.qa summary::after {
+  content: ""; width: 10px; height: 10px; flex: none; margin-right: 6px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: translateY(-3px) rotate(45deg); transition: transform 200ms var(--ease-out);
+}
+.qa details[open] summary::after { transform: translateY(2px) rotate(-135deg); }
+.qa details p { font-size: 1.0625rem; color: var(--ink-soft); padding-top: 8px; max-width: 52ch; }
+.faq-actions { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: center; }
+.faq-actions a:not(.btn) { color: var(--ink); }
+.faq-art { grid-column: 7 / span 6; position: relative; align-self: start; }
+.faq-art .tall { width: 100%; aspect-ratio: 3 / 4; background: #6f6f6f; }
+.faq-art .sq {
+  position: absolute; width: 34%; aspect-ratio: 1; left: -40px; bottom: -40px; background: #8a5a2b;
+}
+
+/* ---------- CTA ---------- */
+.cta-sec {
+  background: var(--hu-green); color: #ffffff; min-height: 80svh; overflow: hidden;
+  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; padding-top: 120px; position: relative;
+}
+.cta-text { grid-column: 1 / span 4; align-self: end; padding-bottom: 64px; font-size: var(--step-lead); line-height: 1.4; max-width: 30ch; }
+.reply {
+  grid-column: 6 / span 7; align-self: end; justify-self: center; width: min(44vw, 640px); aspect-ratio: 7 / 5;
+  background: var(--paper); color: var(--ink); transform: rotate(2deg) translateY(60px);
+  padding: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 18px;
+  transition: transform 600ms var(--ease-out);
+}
+.reply:hover { transform: rotate(1deg) translateY(52px); }
+.reply h2 { font-size: 2rem; }
+.reply p { font-size: 1.0625rem; max-width: 34ch; }
+.reply .btn { width: 100%; min-height: 56px; background: var(--ink); color: var(--paper); }
+.reply .btn:hover { background: var(--accent); color: #fff; }
+.reply .tag { font: 600 var(--step-body)/1 var(--f-game); color: var(--ink-soft); }
+
+/* ---------- Footer ---------- */
+.foot-sec { padding-block: 120px 48px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; }
+.postcard { grid-column: 2 / span 10; min-width: 0; }
+.ribbon { max-width: 100%; }
+.postcard-body {
+  background: var(--paper); color: var(--ink); padding: 56px 56px 28px; min-height: 420px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 40px 56px; position: relative;
+}
+.postcard-msg { display: grid; gap: 16px; align-content: start; }
+.postcard-msg h2 { font-size: 2rem; }
+.postcard-msg p { font-size: var(--step-body); max-width: 36ch; }
+.postcard-addr { display: grid; gap: 12px; align-content: start; padding-top: 128px; font-size: var(--step-body); }
+.postcard-addr a { text-decoration: none; transition: color 160ms; }
+.postcard-addr a:hover { color: var(--accent); text-decoration: underline; }
+.stamp { position: absolute; top: 40px; right: 56px; width: 88px; padding: 6px; background: var(--paper-2); transform: rotate(3deg); }
+.stamp canvas { width: 100%; aspect-ratio: 3 / 4; }
+.imprint { grid-column: 1 / -1; text-align: center; font-size: var(--step-small); color: var(--ink-soft); align-self: end; line-height: 1.5; }
+.bigname { font: 600 min(10rem, 11.2vw)/0.9 var(--f-text); letter-spacing: -0.04em; color: var(--on-ground); padding-top: 72px; grid-column: 1 / -1; white-space: nowrap; overflow: hidden; }
+
+/* ---------- Entrances ---------- */
+.js .rise { opacity: 0; transform: translateY(24px); }
+.rise.in { opacity: 1; transform: none; transition: opacity 700ms var(--ease-out), transform 700ms var(--ease-out); transition-delay: var(--d, 0ms); }
+@media (prefers-reduced-motion: reduce) {
+  .js .rise { opacity: 1; transform: none; }
+  .tooltip { animation: none; }
+  .scene canvas { transition: none; }
+}
+
+/* ---------- Tablet & phone ---------- */
+@media (max-width: 960px) {
+  .menu-sec, .join-sec, .faq-sec, .cta-sec, .foot-sec { grid-template-columns: minmax(0, 1fr); }
+  .menu-side, .menu, .join-text, .slip, .faq-col, .faq-art, .cta-text, .reply, .postcard { grid-column: 1 / -1; }
+  .menu-side { position: static; margin-bottom: 48px; }
+  .menu { justify-self: center; }
+  .slip { margin-top: 56px; justify-self: start; }
+  .faq-art { order: -1; margin-top: 0; padding-top: 0; }
+  .faq-art .tall { aspect-ratio: 4 / 5; }
+  .faq-art .sq { left: auto; right: 0; bottom: -28px; width: 38%; }
+  .faq-col { padding-top: 72px; }
+  .cta-text { padding-bottom: 40px; max-width: none; }
+  .reply { width: 90%; aspect-ratio: auto; min-height: 300px; transform: rotate(1deg) translateY(40px); padding: 36px 24px 56px; }
+  .reply:hover { transform: rotate(0.5deg) translateY(36px); }
+}
+@media (max-width: 760px) {
+  .hero { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .scene-wrap { order: -1; }
+  .scene { position: relative; top: 0; height: 48svh; min-height: 300px; }
+  .card { margin-top: -24px; position: relative; z-index: 2; margin-inline: 8px; }
+  .ribbon { height: 40px; }
+  .card-body { padding: 36px 20px 24px; gap: 22px; }
+  .wordmark { width: 56%; }
+  .hero h1 { font-size: clamp(2.25rem, 9vw, 3rem); }
+  .tooltip { font-size: 14px; left: 12px; top: 12px; padding: 8px 12px; }
+  .tooltip .name { font-size: 17px; }
+  .tooltip .lore { display: none; }
+  .letter-sec { padding-block: 96px; }
+  .sheet-body { padding: 28px 24px; }
+  .tear { flex-direction: column; align-items: stretch; }
+  .tear .btn { width: 100%; }
+  .menu-sec { padding-block: 96px; }
+  .menu-body { padding: 36px 24px; gap: 40px; }
+  .group h4 { font-size: 1.25rem; }
+  .item b, .item .when { font-size: 1rem; }
+  .join-sec { padding-block: 96px; }
+  .slip-body { padding: 28px 20px 0; }
+  .slip-final { margin-inline: -20px; padding-inline: 20px; }
+  .checker .row { grid-template-columns: 1fr 1fr; }
+  .faq-sec { padding-bottom: 96px; }
+  .faq-col h2 { font-size: 1.875rem; }
+  .facts { font-size: 1.0625rem; }
+  .qa details { padding-block: 8px; }
+  .faq-actions .btn { width: 100%; }
+  .cta-sec { padding-top: 88px; }
+  .cta-text { font-size: 1.25rem; }
+  .reply h2 { font-size: 1.5rem; }
+  .reply p { font-size: 1rem; }
+  .reply .btn { min-height: 52px; }
+  .foot-sec { padding-block: 88px 32px; }
+  .postcard-body { grid-template-columns: 1fr; padding: 32px 24px 20px; gap: 28px; }
+  .postcard-addr { padding-top: 0; font-size: 1.0625rem; }
+  .stamp { width: 64px; top: 24px; right: 20px; }
+  .postcard-msg h2 { padding-right: 76px; }
+}
+</style><style>
+.design-switch { position: fixed; z-index: 6; left: max(16px, env(safe-area-inset-left, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 999px; background: var(--card, var(--surface, var(--paper))); color: var(--ink);
+  font: 600 0.875rem/1 var(--f, var(--f-text)); }
+.design-switch span { padding: 0 8px 0 10px; color: var(--ink-soft); font-weight: 500; }
+.design-switch a { text-decoration: none; padding: 9px 14px; border-radius: 999px; transition: background-color 200ms; }
+.design-switch a:hover { background: var(--card-2, var(--surface-2, var(--paper-2))); }
+@media (max-width: 600px) { .design-switch span { display: none; } .design-switch a { padding: 8px 12px; } }
+.design-switch a[aria-current="page"] { background: var(--ink); color: var(--card, var(--bg, var(--paper))); }
+</style>
+</head>
+<body>
+
+<nav class="design-switch" style="left:auto;right:max(16px,env(safe-area-inset-right,0px))" aria-label="Dizájn választása"><span>Dizájn</span><a href="index.html" data-design="egi">Égi szigetek</a><a href="ejszaka.html" data-design="ejszaka">Éjszaka</a><a href="klasszikus.html" data-design="klasszikus" aria-current="page">Klasszikus</a></nav>
+<header class="hero" id="top">
+  <div class="card rise">
+    <div class="ribbon" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="card-body">
+      <svg class="wordmark" viewBox="0 0 150 40" role="img" aria-label="SHU">
+        <!-- pixel wordmark: [SHU], 5x7 grid letters on a 5-unit pixel -->
+        <g fill="#18261f" id="wm"></g>
+      </svg>
+      <h1>Magyar céh a SkyBlockon</h1>
+      <p class="lead">A Skyblock Hungary a Hypixel SkyBlock magyar játékosainak céhe. Közös dungeonök, slayer-estek és segítség, ha most kezded.</p>
+      <a class="btn js-discord" href="#csatlakozas">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.3 4.4A19.6 19.6 0 0 0 15.4 3l-.6 1.3a18 18 0 0 0-5.5 0L8.6 3a19.5 19.5 0 0 0-4.9 1.5C.6 9.1-.3 13.6.2 18.1a19.7 19.7 0 0 0 6 3l1.3-2a12.8 12.8 0 0 1-2-1l.5-.4a14 14 0 0 0 12 0l.5.4c-.6.4-1.3.7-2 1l1.3 2a19.6 19.6 0 0 0 6-3c.5-5.2-.9-9.7-3.5-13.7ZM8 15.3c-1.2 0-2.2-1.1-2.2-2.4S6.8 10.5 8 10.5s2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Z"/></svg>
+        Csatlakozz a Discordon
+      </a>
+    </div>
+    <nav class="hero-links" aria-label="Oldal részei">
+      <a href="#program">Heti program</a>
+      <a href="#csatlakozas">Jelentkezés</a>
+      <a href="#kerdesek">Kérdések</a>
+    </nav>
+  </div>
+  <div class="scene-wrap">
+    <div class="scene" id="scene" role="img" aria-label="Pixeles SkyBlock-sziget fával, ládával és magyar zászlóval, ahogy nappalból naplementébe, majd éjszakába vált">
+      <canvas class="px" data-time="day"></canvas>
+      <canvas class="px off" data-time="sunset"></canvas>
+      <canvas class="px off" data-time="night"></canvas>
+      <div class="tooltip" data-ui aria-hidden="true">
+        <p class="name c-gold">Skyblock Hungary</p>
+        <p class="c-dark">Céh · [SHU]</p>
+        <div class="gap"></div>
+        <p>Tagok: <span class="c-green" data-ph="tagok">?? / 125</span></p>
+        <p>Nyelv: <span class="c-white">Magyar</span></p>
+        <p>Szerver: <span class="c-white">mc.hypixel.net</span></p>
+        <div class="gap lore"></div>
+        <p class="lore">Közös dungeonök, slayer-estek és</p>
+        <p class="lore">segítség a kezdőknek.</p>
+        <div class="gap"></div>
+        <p class="c-yellow">Kattints a csatlakozáshoz!</p>
+        <p class="rarity c-gold">LEGENDÁS CÉH</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="letter-sec wrap" aria-label="Levél a céhvezetéstől">
+    <div class="sheet rise">
+      <div class="sheet-body">
+        <div class="avatar"><canvas class="px" id="avatar" width="8" height="8" aria-hidden="true"></canvas></div>
+        <p>Szia!</p>
+        <p>A SkyBlock jobb társaságban. A Skyblock Hungaryt azért hoztuk létre, hogy a magyar játékosoknak ne idegen nyelvű party finderben kelljen csapatot keresniük egy F7-hez vagy egy Voidgloom-bosshoz.</p>
+        <p>Nálunk a céhchat magyarul megy. Ha elakadtál a Catacombsban, nem tudod, mit flippelj a Bazaarban, vagy csak meg akarod mutatni az új Hyperionodat, van kinek írni.</p>
+        <p>Nem kell maxolt profil. Akkor is szívesen látunk, ha most nyitottad meg az első minionodat, csak legyél aktív és kedves a többiekkel.</p>
+        <p>Gyere be a Discordra, és találkozunk a Hubban.</p>
+        <div class="sign"><b><span class="ph">[Céhmester neve]</span></b><span>céhmester, Skyblock Hungary</span></div>
+      </div>
+      <div class="edge-b" aria-hidden="true"></div>
+      <div class="tear">
+        <span>Discord: <span class="ph js-discord-text">[meghívó link]</span></span>
+        <a class="btn js-discord" href="#csatlakozas">Belépek</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="menu-sec wrap" id="program">
+    <div class="menu-side rise">
+      <h2>Ami egy héten nálunk történik</h2>
+      <p>Az esti partyk a céhchatben és a Discordon indulnak. Bárki szervezhet, bárki beszállhat.</p>
+    </div>
+    <div class="menu rise" style="--d:90ms">
+      <div class="edge-t" aria-hidden="true"></div>
+      <div class="menu-body">
+        <div class="menu-head">
+          <h3>Heti program</h3>
+          <p>Mintaidőpontok, a végleges beosztást a Discordon tesszük ki.</p>
+        </div>
+        <div class="group">
+          <h4>Dungeonök</h4>
+          <div class="item"><b>Catacombs party, F5–F7</b><span class="when">kedd 20:00</span><small>Vegyes szintű csapatok, a tapasztaltabbak elmagyarázzák a bossokat.</small></div>
+          <div class="item"><b>Master Mode futások</b><span class="when">csüt 21:00</span><small>M1-től felfelé, előre egyeztetett classokkal.</small></div>
+          <div class="item"><b>Kezdő dungeon-este</b><span class="when">vas 18:00</span><small>Entrance és F1–F3, első futásokhoz.</small></div>
+        </div>
+        <div class="group">
+          <h4>Slayer és bányászat</h4>
+          <div class="item"><b>Slayer-est: Voidgloom, Inferno</b><span class="when">szer 20:00</span><small>Közös bossolás és carry a lemaradóknak.</small></div>
+          <div class="item"><b>Crystal Hollows expedíció</b><span class="when">pén 19:30</span><small>Gemstone-bányászat és Nucleus-futások együtt.</small></div>
+        </div>
+        <div class="group">
+          <h4>Közösség</h4>
+          <div class="item"><b>Bazaar- és AH-tippek</b><span class="when">folyamatos</span><small>Saját csatorna a flippeléshez és az árfigyeléshez.</small></div>
+          <div class="item"><b>Mayor-választás megbeszélő</b><span class="when">választáskor</span><small>Kire szavazzunk, és mit farmoljunk az évben.</small></div>
+          <div class="item"><b>Céhes nyereményjáték</b><span class="when">havonta</span><small>Coins és itemek a legaktívabb tagoknak.</small></div>
+        </div>
+        <p class="menu-foot">Céhchat: <b>/gc</b> a játékban<br>Hangcsatorna: a Discordon, esténként</p>
+      </div>
+      <div class="edge-b" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <section class="join-sec wrap" id="csatlakozas">
+    <div class="join-text">
+      <h2 class="rise">Így kerülsz be</h2>
+      <p class="rise" style="--d:70ms">Négy lépés, és többnyire egy napon belül megvagy. Előtte nézd meg itt, hogy megfelelsz-e a követelményeknek.</p>
+      <form class="checker rise" style="--d:140ms" data-ui id="checker" novalidate>
+        <h3>Követelmény-ellenőrző</h3>
+        <div class="row">
+          <label for="sb">SkyBlock szint<input id="sb" name="sb" type="number" inputmode="numeric" min="0" max="600" value="120"></label>
+          <label for="cata">Catacombs szint<input id="cata" name="cata" type="number" inputmode="numeric" min="0" max="50" value="18"></label>
+        </div>
+        <p class="verdict" id="verdict" aria-live="polite">Írd be a szintjeidet.</p>
+        <p class="note">A határértékek mintaadatok (<span class="ph" id="req-text">SkyBlock 100, Catacombs 15</span>), a céhvezetés adja meg a pontos számokat.</p>
+      </form>
+    </div>
+    <div class="slip rise" style="--d:120ms">
+      <div class="slip-body">
+        <h3>Most</h3>
+        <ol>
+          <li><span class="what">Lépj be a Discord-szerverre</span><span class="dots"></span><span class="t">1 perc</span></li>
+          <li><span class="what">Írd meg a játékosneved a #jelentkezés csatornában</span><span class="dots"></span><span class="t">2 perc</span></li>
+        </ol>
+        <h3>Ugyanazon a napon</h3>
+        <ol>
+          <li><span class="what">Megnézzük a profilodat a SkyCrypten</span><span class="dots"></span><span class="t">pár óra</span></li>
+          <li><span class="what">Meghívót küldünk a játékban, elfogadod: <code>/g accept</code></span><span class="dots"></span><span class="t">10 mp</span></li>
+        </ol>
+        <h3>Utána</h3>
+        <ol>
+          <li><span class="what">Bemutatkozol a céhchatben</span><span class="dots"></span><span class="t">ahogy jólesik</span></li>
+        </ol>
+        <div class="slip-final"><span>[SHU] a neved mellett</span><span>kb. 1 nap</span></div>
+      </div>
+      <div class="zig" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <section class="faq-sec wrap" id="kerdesek">
+    <div class="faq-col">
+      <h2 class="rise">Gyakori kérdések</h2>
+      <dl class="facts rise" style="--d:70ms">
+        <div><dt>Szerver</dt><dd>mc.hypixel.net</dd><button class="copy" type="button" data-copy="mc.hypixel.net">Másolás</button></div>
+        <div><dt>Céh-tag</dt><dd>[SHU]</dd></div>
+        <div><dt>Nyelv</dt><dd>magyar a chatben és a Discordon</dd></div>
+        <div><dt>Tagok</dt><dd><span class="ph">[jelenlegi létszám]</span> / 125</dd></div>
+      </dl>
+      <div class="qa rise" style="--d:140ms">
+        <details open>
+          <summary>Kezdőket is felvesztek?</summary>
+          <p>Igen. Ha a követelmény alatt vagy, írj nekünk a Discordon, a kezdő tagokra külön figyelünk, és segítünk felhozni a profilodat.</p>
+        </details>
+        <details>
+          <summary>Mi a pontos követelmény?</summary>
+          <p><span class="ph">[A céhvezetés tölti ki: SkyBlock szint, Catacombs szint, networth, ha van ilyen.]</span> A fenti ellenőrző mintaszámokkal dolgozik.</p>
+        </details>
+        <details>
+          <summary>Kell heti GEXP?</summary>
+          <p><span class="ph">[Pl. heti 50 000 GEXP, vagy nincs kötelező minimum.]</span> Ha egy ideig nem tudsz játszani, szólj előre, és nem rúgunk ki.</p>
+        </details>
+        <details>
+          <summary>Ironman és Stranded profillal is lehet?</summary>
+          <p>Igen, a céh a játékosnak szól, nem a profilnak. A követelményt a fő profilodon nézzük.</p>
+        </details>
+        <details>
+          <summary>Kötelező a Discord?</summary>
+          <p>A jelentkezés a Discordon megy, és ott szervezzük az esti partykat is. Hangcsatornára nem kötelező bejönni.</p>
+        </details>
+        <details>
+          <summary>Van kapcsolatotok a Hypixellel?</summary>
+          <p>Nincs. A Skyblock Hungary játékosok által vezetett céh, a Hypixel Inc. vagy a Mojang nem áll mögötte.</p>
+        </details>
+      </div>
+      <div class="faq-actions rise">
+        <a class="btn js-discord" href="#csatlakozas">Kérdezz a Discordon</a>
+        <a href="#csatlakozas">Jelentkezés lépései</a>
+      </div>
+    </div>
+    <div class="faq-art rise" style="--d:100ms">
+      <canvas class="px tall" id="banner" role="img" aria-label="Pixeles kőfal, rajta piros-fehér-zöld zászló SHU felirattal"></canvas>
+      <canvas class="px sq" id="frame" role="img" aria-label="Pixeles keretben gyémántkard"></canvas>
+    </div>
+  </section>
+
+  <section class="cta-sec wrap" aria-label="Csatlakozás">
+    <p class="cta-text rise">Esténként tele a céhchat. Hozd a profilodat, a csapat már megvan.</p>
+    <div class="reply rise" style="--d:90ms">
+      <span class="tag">[SHU]</span>
+      <h2>Várunk a szigeten</h2>
+      <p>Lépj be a Discordra, írd meg a játékosneved, és még ma kapsz meghívót.</p>
+      <a class="btn js-discord" href="#csatlakozas">Csatlakozom</a>
+    </div>
+  </section>
+</main>
+
+<footer class="foot-sec wrap">
+  <div class="postcard rise">
+    <div class="ribbon thin" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="postcard-body">
+      <div class="postcard-msg">
+        <h2>Viszlát a Hubban!</h2>
+        <p>Ha kérdésed van a céhről, írj bármelyik officernek a Discordon vagy a játékban. Magyarul válaszolunk.</p>
+      </div>
+      <div class="postcard-addr">
+        <a class="js-discord" href="#csatlakozas">Discord-szerver</a>
+        <a href="https://sky.shiiyu.moe/" target="_blank" rel="noopener">SkyCrypt profilnézegető</a>
+        <a href="https://hypixel.net/" target="_blank" rel="noopener">hypixel.net fórum</a>
+        <span>Játékban: <b>/g join <span class="ph">[céh pontos neve]</span></b></span>
+      </div>
+      <div class="stamp" aria-hidden="true"><canvas class="px" id="stamp"></canvas></div>
+      <p class="imprint">Skyblock Hungary · játékosok által vezetett céh. Nem áll kapcsolatban a Hypixel Inc.-kel vagy a Mojang Studiosszal.<br>Minden kép kóddal rajzolt pixelgrafika.</p>
+    </div>
+  </div>
+  <div class="bigname" aria-hidden="true">Skyblock Hungary</div>
+</footer>
+
+<script>
+/* ===== Settings to fill in ===== */
+const DISCORD_INVITE = "";              // e.g. "https://discord.gg/xxxxxxx" (placeholder until the guild supplies it)
+const REQ = { sb: 100, cata: 15 };      // placeholder requirements: SkyBlock level, Catacombs level
+
+document.documentElement.classList.add("js");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* Discord links */
+if (DISCORD_INVITE) {
+  document.querySelectorAll(".js-discord").forEach(a => { a.href = DISCORD_INVITE; a.target = "_blank"; a.rel = "noopener"; });
+  document.querySelectorAll(".js-discord-text").forEach(s => { s.textContent = DISCORD_INVITE.replace(/^https?:\/\//, ""); s.classList.remove("ph"); });
+}
+
+/* ===== Pixel wordmark [SHU] ===== */
+(() => {
+  const G = {
+    "[": ["111","100","100","100","100","100","111"],
+    "S": ["01111","10000","10000","01110","00001","00001","11110"],
+    "H": ["10001","10001","10001","11111","10001","10001","10001"],
+    "U": ["10001","10001","10001","10001","10001","10001","01110"],
+    "]": ["111","001","001","001","001","001","111"],
+  };
+  const g = document.getElementById("wm"); let x = 0; const u = 5; let out = "";
+  for (const ch of "[SHU]") {
+    const rows = G[ch];
+    rows.forEach((r, y) => [...r].forEach((b, i) => { if (b === "1") out += `<rect x="${(x + i) * u}" y="${(y + 0.5) * u}" width="${u}" height="${u}"/>`; }));
+    x += rows[0].length + 1;
+  }
+  g.innerHTML = out;
+  g.parentNode.setAttribute("viewBox", `0 0 ${(x - 1) * u} ${8 * u}`);
+})();
+
+/* ===== Pixel helpers ===== */
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function hex(h) { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+function tone(h, f, tint) {
+  let [r, g, b] = hex(h);
+  if (tint) { const [tr, tg, tb] = hex(tint[0]); const k = tint[1]; r = r * (1 - k) + tr * k; g = g * (1 - k) + tg * k; b = b * (1 - k) + tb * k; }
+  return `rgb(${Math.min(255, r * f) | 0},${Math.min(255, g * f) | 0},${Math.min(255, b * f) | 0})`;
+}
+
+/* ===== The island scene ===== */
+const TIMES = {
+  day:    { sky: ["#6fa8f5", "#86b8f7", "#a0c8fa", "#bcd9fb"], light: 1, tint: null, body: "#fff6a8", cloud: "#ffffff" },
+  sunset: { sky: ["#23305f", "#4c3a6a", "#a8485a", "#e0704f", "#f4a35c"], light: 0.82, tint: ["#ff8a4c", 0.22], body: "#ffd27a", cloud: "#f6b49a" },
+  night:  { sky: ["#05081a", "#0a1029", "#101a3c", "#18264d"], light: 0.42, tint: ["#2a3f8f", 0.35], body: "#e9edf7", cloud: "#4a5577" },
+};
+function drawScene(cv, timeKey, t) {
+  const box = cv.getBoundingClientRect();
+  if (!box.width) return;
+  const ps = Math.max(4, Math.round(box.width / 96));
+  const W = Math.ceil(box.width / ps), H = Math.ceil(box.height / ps);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const c = cv.getContext("2d"); const T = TIMES[timeKey]; const R = rng(7);
+  const P = (x, y, col, w = 1, h = 1) => { c.fillStyle = col; c.fillRect(x | 0, y | 0, w, h); };
+  const L = (col, f = 1) => tone(col, T.light * f, T.tint);
+
+  // sky in flat bands with a dithered seam
+  const n = T.sky.length, bandH = H / n;
+  for (let i = 0; i < n; i++) {
+    P(0, Math.floor(i * bandH), T.sky[i], W, Math.ceil(bandH) + 1);
+    if (i < n - 1) { const y = Math.floor((i + 1) * bandH); for (let x = 0; x < W; x += 2) P(x + (y & 1), y - 1, T.sky[i + 1]); for (let x = 0; x < W; x += 2) P(x + ((y + 1) & 1), y, T.sky[i]); for (let x = 0; x < W; x += 4) P(x, y - 2, T.sky[i + 1]); }
+  }
+  // stars
+  if (timeKey === "night") { for (let i = 0; i < W * H / 60; i++) { const x = R() * W, y = R() * H * 0.6; P(x, y, (i + Math.floor(t / 900)) % 9 === 0 ? "#6d7bb0" : "#dfe6ff"); } }
+  else { for (let i = 0; i < W * H / 60; i++) { R(); R(); } }
+  // sun or moon
+  const sx = timeKey === "sunset" ? W * 0.74 : W * 0.78, sy = timeKey === "sunset" ? H * 0.5 : H * 0.14, s = Math.max(5, Math.round(W / 14));
+  P(sx - 1, sy - 1, timeKey === "night" ? "#2a3766" : "rgba(255,255,255,0.25)", s + 2, s + 2);
+  P(sx, sy, T.body, s, s);
+  if (timeKey === "night") { P(sx + 1, sy + 1, "#c9cfdf", 2, 2); P(sx + s - 3, sy + s - 4, "#c9cfdf", 2, 1); }
+  // drifting block clouds
+  const drift = t / 1400;
+  for (let k = 0; k < 4; k++) {
+    const cw = 10 + ((k * 7) % 9), cy = Math.round(H * (0.08 + k * 0.09));
+    const cx = ((k * 37 + drift * (1 + k * 0.3)) % (W + 30)) - 20;
+    P(cx, cy, T.cloud, cw, 2); P(cx + 3, cy - 1, T.cloud, cw - 6, 1); P(cx + 2, cy + 2, T.cloud, cw - 3, 1);
+  }
+
+  // island
+  const iw = Math.min(Math.round(W * 0.74), 80), ix = Math.round(W - iw - W * 0.06), iy = Math.round(H * (W < 70 ? 0.66 : 0.62));
+  const grass = ["#5fae3c", "#6cbf45", "#4f9a33"], dirt = ["#8a5a35", "#7a4e2e", "#9a6840"], stone = ["#7d7d7d", "#6c6c6c", "#8d8d8d"];
+  const RI = rng(42);
+  for (let x = 0; x < iw; x++) {
+    const edge = Math.min(x, iw - 1 - x);
+    const depth = Math.max(1, Math.round(4 + edge * 0.55 + RI() * 3 - Math.max(0, 6 - edge) * 0.8));
+    for (let y = 0; y < depth; y++) {
+      let col;
+      if (y === 0) col = grass[(RI() * 3) | 0];
+      else if (y < 4) col = (y === 1 && RI() < 0.35) ? grass[2] : dirt[(RI() * 3) | 0];
+      else col = RI() < 0.04 ? (RI() < 0.5 ? "#e3c35b" : "#5be3d9") : stone[(RI() * 3) | 0];
+      P(ix + x, iy + y, L(col, y > depth - 2 ? 0.75 : 1));
+    }
+  }
+  // oak tree
+  const tx = ix + Math.round(iw * 0.24);
+  for (let y = 1; y <= 7; y++) P(tx, iy - y, L(y % 2 ? "#6b4a2b" : "#5c3f24"));
+  const leaves = ["#3f8a2f", "#357a28", "#4a9a37"];
+  for (let y = -12; y <= -6; y++) for (let x = -4; x <= 4; x++) {
+    const r = Math.abs(x) + Math.abs(y + 9) * 0.9;
+    if (r < 5.2 && RI() > 0.08) P(tx + x, iy + y, L(leaves[(RI() * 3) | 0]));
+  }
+  // chest
+  const cx0 = ix + Math.round(iw * 0.44);
+  P(cx0, iy - 3, L("#9a6b32"), 4, 3); P(cx0, iy - 2, L("#6b4a22"), 4, 1); P(cx0 + 1, iy - 2, L("#d9c46a"), 2, 1);
+  // player
+  const px0 = ix + Math.round(iw * 0.58);
+  P(px0, iy - 6, L("#c99a75"), 2, 2); P(px0, iy - 6, L("#4a3220"), 2, 1);
+  P(px0, iy - 4, L("#3aa7a7"), 2, 2); P(px0, iy - 2, L("#3b4a8f"), 2, 2);
+  // flag pole with the Hungarian tricolour, waving one pixel
+  const fx = ix + Math.round(iw * 0.78);
+  for (let y = 1; y <= 12; y++) P(fx, iy - y, L("#cfcfcf", 0.9));
+  const wave = reduce ? 0 : Math.floor(t / 500) % 2;
+  const fl = ["#ce2939", "#ffffff", "#477050"];
+  for (let r = 0; r < 3; r++) for (let x = 1; x <= 7; x++) {
+    const dy = (x > 3 && wave) ? 1 : 0;
+    P(fx + x, iy - 12 + r * 2 + dy, L(fl[r]), 1, 2);
+  }
+  // night: torch glow
+  if (timeKey !== "day") {
+    const gx = cx0 - 3; P(gx, iy - 3, L("#6b4a2b"), 1, 2);
+    P(gx, iy - 4, "#ffd34d"); if (timeKey === "night") { P(gx - 1, iy - 5, "rgba(255,200,80,0.25)", 3, 3); }
+  }
+  // hanging roots under the island
+  for (let k = 0; k < 6; k++) {
+    const rx = ix + Math.round(iw * (0.2 + k * 0.12)), edge = Math.min(rx - ix, ix + iw - rx);
+    const base = iy + Math.max(1, Math.round(4 + edge * 0.55));
+    const len = 2 + ((k * 5) % 4);
+    for (let y = 0; y < len; y++) P(rx, base + y, L("#5a5a5a", 0.7));
+  }
+}
+
+const scene = document.getElementById("scene");
+const sceneCanvases = [...scene.querySelectorAll("canvas")];
+let active = 0, lastSwap = performance.now(), visible = true;
+function frame(now) {
+  if (visible) {
+    if (!reduce && now - lastSwap > 6500) {
+      sceneCanvases[active].classList.add("off");
+      active = (active + 1) % sceneCanvases.length;
+      sceneCanvases[active].classList.remove("off");
+      lastSwap = now;
+    }
+    sceneCanvases.forEach((cv, i) => { if (i === active || !cv.classList.contains("off") || now - lastSwap < 1700) drawScene(cv, cv.dataset.time, reduce ? 0 : now); });
+  }
+  if (!reduce) setTimeout(() => requestAnimationFrame(frame), 90);
+}
+sceneCanvases.forEach(cv => drawScene(cv, cv.dataset.time, 0));
+requestAnimationFrame(frame);
+document.addEventListener("visibilitychange", () => { visible = !document.hidden; lastSwap = performance.now(); });
+addEventListener("resize", () => sceneCanvases.forEach(cv => drawScene(cv, cv.dataset.time, performance.now())));
+
+/* ===== Sprites ===== */
+function sprite(cv, w, h, paint) { cv.width = w; cv.height = h; const c = cv.getContext("2d"); const P = (x, y, col, ww = 1, hh = 1) => { c.fillStyle = col; c.fillRect(x, y, ww, hh); }; paint(P, rng(11)); }
+
+// Avatar: a small block face
+sprite(document.getElementById("avatar"), 8, 8, (P) => {
+  P(0, 0, "#c99a75", 8, 8); P(0, 0, "#4a3220", 8, 2); P(0, 2, "#4a3220", 1, 2); P(7, 2, "#4a3220", 1, 2);
+  P(1, 4, "#ffffff"); P(2, 4, "#2f5f9e"); P(5, 4, "#2f5f9e"); P(6, 4, "#ffffff");
+  P(3, 5, "#a87a58", 2, 1); P(2, 6, "#7a4e3a", 4, 1);
+});
+
+// Banner on a stone-brick wall (3:4)
+sprite(document.getElementById("banner"), 48, 64, (P, R) => {
+  const st = ["#7b7b7b", "#727272", "#858585", "#6a6a6a"];
+  for (let y = 0; y < 64; y++) for (let x = 0; x < 48; x++) P(x, y, st[(R() * 4) | 0]);
+  for (let y = 0; y < 64; y += 8) { P(0, y, "#4f4f4f", 48, 1); const off = (y / 8) % 2 ? 8 : 0; for (let x = off; x < 48; x += 16) P(x, y, "#4f4f4f", 1, 8); }
+  for (let i = 0; i < 40; i++) P((R() * 48) | 0, (R() * 64) | 0, "#5d7d4a");
+  // crossbar
+  P(10, 8, "#6b4a2b", 28, 2); P(10, 8, "#8a6238", 28, 1);
+  // banner body: red, white, green
+  const bx = 14, bw = 20;
+  P(bx, 10, "#ce2939", bw, 14); P(bx, 24, "#f4f4f4", bw, 14); P(bx, 38, "#477050", bw, 14);
+  P(bx, 10, "#a31f2d", 1, 42); P(bx + bw - 1, 10, "#a31f2d", 1, 14); P(bx + bw - 1, 24, "#cfcfcf", 1, 14); P(bx + bw - 1, 38, "#35573d", 1, 14);
+  // notched tail
+  for (let k = 0; k < 4; k++) { P(bx + bw / 2 - 4 + k, 52 + k, "#7b7b7b", 8 - 2 * k, 1); }
+  P(bx, 52, "#477050", 6, 1); P(bx + bw - 6, 52, "#477050", 6, 1); P(bx, 53, "#477050", 4, 1); P(bx + bw - 4, 53, "#477050", 4, 1); P(bx, 54, "#477050", 2, 1); P(bx + bw - 2, 54, "#477050", 2, 1);
+  // SHU letters, 3x5
+  const F = { S: ["111", "100", "111", "001", "111"], H: ["101", "101", "111", "101", "101"], U: ["101", "101", "101", "101", "111"] };
+  let lx = bx + 3;
+  for (const ch of "SHU") { F[ch].forEach((r, y) => [...r].forEach((b, i) => { if (b === "1") P(lx + i * 1, 28 + y, "#18261f"); })); lx += 5; }
+  // torches
+  for (const tx of [4, 43]) { P(tx, 30, "#6b4a2b", 1, 5); P(tx, 29, "#ffd34d"); P(tx, 28, "#fff1a8"); }
+});
+
+// Item frame with a diamond sword (square)
+sprite(document.getElementById("frame"), 18, 18, (P) => {
+  P(0, 0, "#8a5a2b", 18, 18); P(0, 0, "#a8743e", 18, 1); P(0, 0, "#a8743e", 1, 18); P(17, 0, "#5e3c1c", 1, 18); P(0, 17, "#5e3c1c", 18, 1);
+  P(2, 2, "#b98a5a", 14, 14); P(2, 2, "#a07446", 14, 1);
+  // blade along the diagonal
+  for (let x = 6; x <= 14; x++) { const y = 17 - x; P(x, y, "#4aedd9"); P(x - 1, y, "#2bb3a3"); P(x, y + 1, "#2bb3a3"); P(x + 1, y - 1, "#d6fff9"); }
+  P(15, 1, "#1d6f66"); P(14, 1, "#2bb3a3");
+  // guard
+  P(3, 10, "#3b2a14"); P(4, 11, "#5a3f1e"); P(5, 12, "#5a3f1e"); P(6, 13, "#3b2a14"); P(4, 10, "#5a3f1e"); P(6, 12, "#5a3f1e");
+  // handle and pommel
+  P(4, 13, "#6b4a2b"); P(3, 14, "#5a3f1e"); P(2, 15, "#2bb3a3");
+});
+
+// Stamp: grass block face (3:4 area)
+sprite(document.getElementById("stamp"), 12, 16, (P, R) => {
+  P(0, 0, "#7fb2ff", 12, 16);
+  const dirt = ["#8a5a35", "#7a4e2e", "#9a6840", "#6b4428"], gr = ["#5fae3c", "#6cbf45", "#4f9a33"];
+  for (let y = 4; y < 16; y++) for (let x = 0; x < 12; x++) P(x, y, dirt[(R() * 4) | 0]);
+  for (let x = 0; x < 12; x++) { const d = 2 + ((R() * 3) | 0); for (let y = 4; y < 4 + d; y++) P(x, y, gr[(R() * 3) | 0]); }
+  P(2, 1, "#ffffff", 4, 1); P(3, 0, "#ffffff", 2, 1); P(8, 2, "#ffffff", 3, 1);
+});
+
+/* ===== Requirement checker ===== */
+const sb = document.getElementById("sb"), cata = document.getElementById("cata"), verdict = document.getElementById("verdict");
+document.getElementById("req-text").textContent = `SkyBlock ${REQ.sb}, Catacombs ${REQ.cata}`;
+function check() {
+  const a = parseInt(sb.value, 10), b = parseInt(cata.value, 10);
+  if (Number.isNaN(a) || Number.isNaN(b)) { verdict.innerHTML = "Írd be mindkét szintet."; return; }
+  const okA = a >= REQ.sb, okB = b >= REQ.cata;
+  if (okA && okB) verdict.innerHTML = `<span class="c-green">Megfelelsz!</span> Gyere a Discordra, és írd meg a játékosneved.`;
+  else {
+    const miss = [];
+    if (!okA) miss.push(`<span class="c-yellow">${REQ.sb - a}</span> SkyBlock szint`);
+    if (!okB) miss.push(`<span class="c-yellow">${REQ.cata - b}</span> Catacombs szint`);
+    verdict.innerHTML = `<span class="c-red">Még hiányzik:</span> ${miss.join(" és ")}. Kezdőként is írhatsz nekünk.`;
+  }
+  verdict.classList.remove("pop"); void verdict.offsetWidth; verdict.classList.add("pop");
+}
+[sb, cata].forEach(i => i.addEventListener("input", check));
+document.getElementById("checker").addEventListener("submit", e => { e.preventDefault(); check(); });
+check();
+
+/* ===== Copy server address ===== */
+document.querySelectorAll("[data-copy]").forEach(btn => btn.addEventListener("click", () => {
+  const txt = btn.dataset.copy, done = () => { btn.textContent = "Másolva"; setTimeout(() => btn.textContent = "Másolás", 1600); };
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(done, () => { selectText(btn.previousElementSibling); });
+  else selectText(btn.previousElementSibling);
+}));
+function selectText(el) { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+
+/* ===== Entrances: only for parts below the first screen ===== */
+const rises = [...document.querySelectorAll(".rise")];
+const io = "IntersectionObserver" in window ? new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { rootMargin: "0px 0px -8% 0px" }) : null;
+rises.forEach(el => {
+  const top = el.getBoundingClientRect().top;
+  if (!io || reduce || top < innerHeight) el.classList.add("in");
+  else io.observe(el);
+});
+setTimeout(() => rises.forEach(el => el.classList.add("in")), 4000);
+</script>
+<script>document.querySelectorAll('.design-switch a').forEach(function(a){a.addEventListener('click',function(){try{localStorage.setItem('shu-design',a.dataset.design)}catch(e){}})})</script>
+</body>
+</html>
