@@ -565,99 +565,439 @@ const SHU = (() => {
   layout();
 
   /* ---------- voxel world ----------
-     Each island is drawn into its own small offscreen canvas only when its rotation has moved on (about 30 times a second);
-     every screen frame just places those bitmaps, so the page keeps the display's full frame rate. */
-  const cv = document.getElementById("world"), ctx = cv.getContext("2d");
-  let W = 0, H = 0, dpr = 1;
-  function size() { dpr = Math.min(1.5, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); islands.forEach(isl => isl.dirty = true); }
+     The guild island and its two small neighbours come from voxel.js and designs.js (Minecraft textures drawn in code).
+     Drawing a textured island takes a while, so it happens in a worker when the browser can draw there: about 30 times
+     a second for the big island and 15 for the small ones. The page's own thread only places the finished bitmaps each
+     frame, so scrolling keeps the display's full frame rate. Without worker drawing it falls back to half that rate here. */
+  function voxWorld() {
+/* SHU voxel engine.
+   Minecraft-style islands for Canvas 2D. Every visible block face is one affine-mapped drawImage of a
+   16x16 texture drawn in code, so the look comes from real block textures instead of flat colours. */
+const VOX = (() => {
+  const rng = s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const seedOf = str => { let h = 2166136261; for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h; };
+  const any = (r, a) => a[(r() * a.length) | 0];
 
-  function rng(s) { return () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-  function island(seed, R) {
-    const r = rng(seed), vox = new Map(), key = (x, y, z) => x + "," + y + "," + z;
-    const put = (x, y, z, c) => vox.set(key(x, y, z), { x, y, z, c });
-    for (let x = -R; x <= R; x++) for (let z = -R; z <= R; z++) {
-      const d = Math.hypot(x, z) + r() * 0.8; if (d > R) continue;
-      const depth = Math.max(1, Math.round((R - d) * 0.9 + r() * 1.5));
-      for (let y = 0; y >= -depth; y--) {
-        const c = y === 0 ? (r() < 0.2 ? "#6cbf45" : "#5aa83a") : y > -3 ? (r() < 0.5 ? "#8a5a35" : "#7a4e2e") : (r() < 0.06 ? "#5be3d9" : r() < 0.5 ? "#7d7d7d" : "#6c6c6c");
-        put(x, y, z, c);
+  /* ---------- textures ---------- */
+  const BASE = {}, GLOW = new Set(), NIGHT_ALT = {};
+  function tex(name, make, o = {}) {
+    const r = rng(seedOf(name)), px = make(r), d = new Uint8ClampedArray(1024);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      let c = px(x, y), a = 255;
+      if (c == null) continue;
+      if (Array.isArray(c)) { a = Math.round(c[1] * 255); c = c[0]; }
+      const n = parseInt(c.slice(1), 16), i = (y * 16 + x) * 4;
+      d[i] = n >> 16; d[i + 1] = (n >> 8) & 255; d[i + 2] = n & 255; d[i + 3] = a;
+    }
+    BASE[name] = d; if (o.glow) GLOW.add(name);
+  }
+  const GR = ["#5f9e34", "#68a93a", "#579330", "#73b443", "#4e8a2b", "#64a336"];
+  const DI = ["#866043", "#7a563c", "#94694a", "#6c4c35", "#a07552", "#7f5a3f"];
+  const ST = ["#7f7f7f", "#767676", "#888888", "#6f6f6f", "#8f8f8f", "#7b7b7b"];
+  tex("grass_top", r => () => any(r, GR));
+  tex("dirt", r => () => any(r, DI));
+  tex("grass_side", r => { const drip = Array.from({ length: 16 }, () => 2 + (r() * 3 | 0) + (r() < 0.2 ? 2 : 0)); return (x, y) => y < drip[x] ? any(r, GR) : y === drip[x] && r() < 0.5 ? "#4e8a2b" : any(r, DI); });
+  tex("stone", r => () => any(r, ST));
+  tex("path_top", r => () => any(r, ["#9a7d4a", "#8c7043", "#a5874f", "#806539", "#94784a"]));
+  tex("sand", r => () => any(r, ["#dcd4a2", "#e2dbad", "#d3ca95", "#cfc58c", "#d8d09c"]));
+  tex("bedrock", r => () => any(r, ["#575757", "#333333", "#7b7b7b", "#222222", "#454545"]));
+  const ORES = { coal_ore: ["#2b2b2b", "#3b3b3b", "#1d1d1d"], iron_ore: ["#d8af93", "#c19a7e", "#e3c3a8"], gold_ore: ["#fcee4b", "#e3c42f", "#fff6a0"],
+    diamond_ore: ["#5decf5", "#3ed0d6", "#a5fbff"], lapis_ore: ["#2d52b5", "#1f3e96", "#4a72d8"], redstone_ore: ["#ff1a1a", "#b30000", "#ff6060"] };
+  for (const [name, cols] of Object.entries(ORES)) tex(name, r => {
+    const m = new Set();
+    for (let k = 0; k < 4; k++) { let x = 2 + (r() * 12 | 0), y = 2 + (r() * 12 | 0); for (let i = 0; i < 4 + (r() * 3 | 0); i++) { m.add(x + y * 16); x = Math.max(1, Math.min(14, x + (r() * 3 | 0) - 1)); y = Math.max(1, Math.min(14, y + (r() * 3 | 0) - 1)); } }
+    return (x, y) => m.has(x + y * 16) ? any(r, cols) : any(r, ST);
+  });
+  tex("cobble", r => {
+    const pts = Array.from({ length: 10 }, () => [r() * 16, r() * 16, any(r, ["#8a8a8a", "#7a7a7a", "#979797", "#6f6f6f"])]);
+    return (x, y) => {
+      let a = 1e9, b = 1e9, c = null;
+      for (const p of pts) for (let ox = -16; ox <= 16; ox += 16) for (let oy = -16; oy <= 16; oy += 16) {
+        const d = Math.hypot(x + 0.5 - p[0] - ox, y + 0.5 - p[1] - oy);
+        if (d < a) { b = a; a = d; c = p[2]; } else if (d < b) b = d;
       }
-    }
-    return { vox, key, put, r };
+      return b - a < 1.2 ? (r() < 0.5 ? "#505050" : "#5a5a5a") : r() < 0.15 ? "#a3a3a3" : c;
+    };
+  });
+  tex("log_side", r => { const col = Array.from({ length: 16 }, () => any(r, ["#6b5233", "#5e4729", "#76603c", "#54402a"])); return x => r() < 0.16 ? "#45331e" : col[x]; });
+  tex("log_top", r => (x, y) => { const d = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5)); return d > 6.6 ? any(r, ["#6b5233", "#5e4729"]) : Math.floor(d) % 2 ? "#b8955c" : "#a58450"; });
+  tex("birch_side", r => {
+    const marks = new Set();
+    for (let k = 0; k < 7; k++) { const y = r() * 16 | 0, x0 = r() * 14 | 0, len = 1 + (r() * 4 | 0); for (let i = 0; i < len; i++) marks.add(((x0 + i) & 15) + y * 16); }
+    return (x, y) => marks.has(x + y * 16) ? "#34342f" : any(r, ["#d8d7d2", "#e3e2dc", "#cfcec8", "#dddcd5"]);
+  });
+  tex("birch_top", r => (x, y) => { const d = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5)); return d > 6.6 ? "#d8d7d2" : Math.floor(d) % 2 ? "#c9b27a" : "#b9a26c"; });
+  tex("oak_leaves", r => () => r() < 0.14 ? "#234d17" : any(r, ["#3d7d22", "#4a9129", "#336d1c", "#55a131"]));
+  tex("birch_leaves", r => () => r() < 0.14 ? "#3e6324" : any(r, ["#6a9d3f", "#7aad49", "#5c8c35", "#86b852"]));
+  function planks(cols, seam) {
+    return r => { const joint = [0, 1, 2, 3].map(() => r() * 16 | 0); return (x, y) => y % 4 === 3 ? seam : x === joint[y >> 2] ? seam : any(r, cols); };
   }
-  function addTree(I, tx, tz) {
-    for (let y = 1; y <= 4; y++) I.put(tx, y, tz, "#6b4a2b");
-    for (let x = -2; x <= 2; x++) for (let z = -2; z <= 2; z++) for (let y = 4; y <= 6; y++) {
-      if (Math.abs(x) + Math.abs(z) + (y - 4) > 3 || (x === 0 && z === 0 && y < 6)) continue;
-      if (I.r() < 0.9) I.put(tx + x, y, tz + z, I.r() < 0.5 ? "#3f8a2f" : "#357a28");
-    }
+  tex("planks", planks(["#b28f58", "#a8854f", "#bc9963", "#a07d48"], "#735a35"));
+  tex("spruce", planks(["#735532", "#6a4e2d", "#7c5c37", "#654a2b"], "#43301b"));
+  const WOOL = { wool_red: ["#c8102e", "#b80e2a", "#d41a37"], wool_white: ["#f2f2f2", "#e6e6e6", "#fafafa"], wool_green: ["#477050", "#3f6647", "#4e7a58"] };
+  for (const [name, cols] of Object.entries(WOOL)) tex(name, r => () => any(r, cols));
+  tex("glass", r => (x, y) => x === 0 || y === 0 || x === 15 || y === 15 ? "#d6ecf2" : (x - y === 3 || x - y === 4) && x > 4 && x < 12 ? ["#ffffff", 0.6] : ["#bfe3ee", 0.18]);
+  tex("glass_lit", r => (x, y) => x === 0 || y === 0 || x === 15 || y === 15 ? "#d6ecf2" : (x - y === 3 || x - y === 4) && x > 4 && x < 12 ? ["#ffffff", 0.6] : ["#9fcfe0", 0.45]);
+  tex("glass_warm", r => (x, y) => x === 0 || y === 0 || x === 15 || y === 15 ? "#6b5636" : any(r, ["#ffcf6e", "#ffd88a", "#f7c25a"]), { glow: true });
+  NIGHT_ALT.glass_lit = "glass_warm";
+  const CH = ["#a26b2a", "#9a6426", "#ab722e"], CHD = "#3d2610";
+  tex("chest_side", r => (x, y) => x === 1 || x === 14 || y === 2 || y === 15 || y === 7 ? CHD : any(r, CH));
+  tex("chest_front", r => (x, y) => x >= 7 && x <= 8 && y >= 5 && y <= 8 ? (y === 5 ? "#e0e0e0" : "#a8a8a8") : x === 1 || x === 14 || y === 2 || y === 15 || y === 7 ? CHD : any(r, CH));
+  tex("chest_top", r => (x, y) => x === 1 || x === 14 || y === 1 || y === 14 ? CHD : any(r, CH));
+  tex("craft_top", r => (x, y) => x === 0 || x === 15 || y === 0 || y === 15 ? "#5d4325" : (x === 5 || x === 10 || y === 5 || y === 10) ? "#7a5c33" : any(r, ["#b28f58", "#a8854f", "#bc9963"]));
+  tex("craft_side", r => (x, y) => x === 0 || x === 15 || y === 0 || y === 15 ? "#5d4325" : (y >= 3 && y <= 4 && x >= 2 && x <= 7) || (x >= 10 && x <= 11 && y >= 3 && y <= 10) ? "#8f8f8f" : (x >= 9 && x <= 12 && y >= 2 && y <= 3) ? "#6b6b6b" : any(r, ["#b28f58", "#a8854f", "#9e7b47"]));
+  tex("cactus_side", r => (x, y) => x % 4 === 1 ? "#1f5714" : r() < 0.05 ? "#e2e2b8" : any(r, ["#2f7a21", "#357f25", "#2a6e1d"]));
+  tex("cactus_top", r => (x, y) => { const d = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5)); return d > 5.6 ? "#2a6e1d" : Math.floor(d) % 2 ? "#4a9a35" : "#3e8a2c"; });
+  tex("torch", r => (x, y) => y < 8 ? (y < 7 ? "#fff2a8" : "#ffb52e") : any(r, ["#7a5b34", "#6b4f2c"]), { glow: true });
+  tex("torch_top", r => () => any(r, ["#fff2a8", "#ffe07a"]), { glow: true });
+  tex("door", r => (x, y) => x === 0 || x === 15 || y === 0 || y === 15 ? "#3e2b17" : (y >= 3 && y <= 7 && ((x >= 3 && x <= 6) || (x >= 9 && x <= 12))) ? ["#bfe3ee", 0.7] : y % 4 === 3 ? "#4b3720" : any(r, ["#735532", "#6a4e2d", "#7c5c37"]));
+  // "SHU" letters on a sign board (rows 3 to 12 are visible on the board)
+  const LET = ["###.#.#.#.#", "#...#.#.#.#", "###.###.#.#", "..#.#.#.#.#", "###.#.#.###"];
+  tex("sign", r => (x, y) => {
+    if (y === 3 || y === 12 || x === 0 || x === 15) return "#6b4e2a";
+    const ly = y - 5, lx = x - 2;
+    if (ly >= 0 && ly < 5 && lx >= 0 && lx < 11 && LET[ly][lx] === "#") return "#2e2110";
+    return any(r, ["#c29a5f", "#b58d55", "#c9a46a"]);
+  });
+  tex("poppy", r => (x, y) => (x === 7 || x === 8) && y >= 8 ? "#3f7f22" : (y === 10 && x === 9) || (y === 11 && x === 10) ? "#4f9a2c" : y >= 3 && y <= 7 && Math.abs(x - 7.5) + Math.abs(y - 5) <= 3 ? (x >= 7 && x <= 8 && y >= 4 && y <= 5 ? "#3a1a10" : any(r, ["#d42f2f", "#b81f1f"])) : null);
+  tex("dandelion", r => (x, y) => (x === 7) && y >= 9 ? "#4f8f2a" : y >= 6 && y <= 9 && x >= 6 && x <= 9 && !((x === 6 || x === 9) && (y === 6 || y === 9)) ? any(r, ["#f5d82b", "#ffe75a", "#e0b81a"]) : null);
+  tex("tall_grass", r => { const h = Array.from({ length: 16 }, () => r() < 0.6 ? 5 + (r() * 9 | 0) : 0); return (x, y) => h[x] && y >= 16 - h[x] ? any(r, ["#4f8a2b", "#5f9e34", "#467d26", "#6aa83a"]) : null; });
+  // water: 8 frames of the same ripple pattern shifted down, so falls appear to flow
+  const WC = ["#2f5fd6", "#3b6ce0", "#4a7ae8", "#5a8af0"], wr = rng(77);
+  const WN = Array.from({ length: 16 }, (_, y) => Array.from({ length: 16 }, (_, x) => Math.max(0, Math.min(3, Math.floor((Math.sin(x * 0.7 + y * 0.4) + 1) * 1.4 + wr() * 1.2)))));
+  for (let f = 0; f < 8; f++) tex("water" + f, () => (x, y) => [WC[WN[(y + 16 - f * 2) & 15][x]], 0.8]);
+
+  // the same texture with a face's light (and the night tint) baked in, cached
+  const cache = new Map(), NIGHT = [0.4, 0.47, 0.72];
+  function shaded(name, light, night) {
+    if (night && NIGHT_ALT[name]) name = NIGHT_ALT[name];
+    const key = name + "|" + light + (night ? "n" : "d"); let c = cache.get(key); if (c) return c;
+    const src = BASE[name], glow = GLOW.has(name), img = new ImageData(16, 16), o = img.data;
+    const k = glow ? [1, 1, 1] : night ? NIGHT.map(v => v * light) : [light, light, light];
+    for (let i = 0; i < 1024; i += 4) { o[i] = src[i] * k[0]; o[i + 1] = src[i + 1] * k[1]; o[i + 2] = src[i + 2] * k[2]; o[i + 3] = src[i + 3]; }
+    c = typeof document !== "undefined" ? document.createElement("canvas") : new OffscreenCanvas(16, 16);
+    c.width = c.height = 16; c.getContext("2d").putImageData(img, 0, 0); cache.set(key, c); return c;
   }
-  const NORMALS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
-  const LIGHT = [0.82, 0.7, 1.0, 0.5, 0.9, 0.66];
-  const CORNERS = [
-    [[.5, -.5, -.5], [.5, -.5, .5], [.5, .5, .5], [.5, .5, -.5]], [[-.5, -.5, -.5], [-.5, .5, -.5], [-.5, .5, .5], [-.5, -.5, .5]],
-    [[-.5, .5, -.5], [.5, .5, -.5], [.5, .5, .5], [-.5, .5, .5]], [[-.5, -.5, -.5], [-.5, -.5, .5], [.5, -.5, .5], [.5, -.5, -.5]],
-    [[-.5, -.5, .5], [-.5, .5, .5], [.5, .5, .5], [.5, -.5, .5]], [[-.5, -.5, -.5], [.5, -.5, -.5], [.5, .5, -.5], [-.5, .5, -.5]]];
-  function shade(hex, f) { const n = parseInt(hex.slice(1), 16); return `rgb(${Math.min(255, (n >> 16) * f) | 0},${Math.min(255, ((n >> 8) & 255) * f) | 0},${Math.min(255, (n & 255) * f) | 0})`; }
-  // flatten every exposed face once: its corners, centre, normal and both colours
-  function build(I) {
-    const pts = [], cen = [], nrm = [], day = [], night = []; let rmax = 0, ymin = 0, ymax = 0;
-    I.vox.forEach(v => {
-      rmax = Math.max(rmax, Math.hypot(v.x, v.z)); ymin = Math.min(ymin, v.y); ymax = Math.max(ymax, v.y);
-      NORMALS.forEach((n, ni) => {
-        if (I.vox.has(I.key(v.x + n[0], v.y + n[1], v.z + n[2]))) return;
-        CORNERS[ni].forEach(c => pts.push(v.x + c[0], v.y + c[1], v.z + c[2]));
-        cen.push(v.x + n[0] * 0.5, v.y + n[1] * 0.5, v.z + n[2] * 0.5); nrm.push(ni);
-        day.push(shade(v.c, LIGHT[ni])); night.push(shade(v.c, LIGHT[ni] * 0.55));
-      });
+
+  /* ---------- models ---------- */
+  const N = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+  const LIGHT = [0.62, 0.62, 1, 0.5, 0.82, 0.82, 0.9];
+  const FULL = [0, 0, 0, 16, 16, 16];
+  class Model {
+    constructor(seed) { this.cells = new Map(); this.parts = []; this.r = rng(seed); }
+    k(x, y, z) { return x + "," + y + "," + z; }
+    set(x, y, z, t, kind = "solid", extra) { this.cells.set(this.k(x, y, z), { x, y, z, t, kind, ...extra }); return this; }
+    get(x, y, z) { return this.cells.get(this.k(x, y, z)); }
+    del(x, y, z) { this.cells.delete(this.k(x, y, z)); return this; }
+    box(x, y, z, b, t) { this.parts.push({ x, y, z, b, t }); return this; }
+    cross(x, y, z, t) { this.parts.push({ x, y, z, t, cross: true }); return this; }
+  }
+  const pick = (t, ni) => typeof t === "string" ? t : (ni === t.dir && t.front) || (ni === 2 ? t.top : ni === 3 ? t.bottom : t.side) || t.side || t.top;
+  const isWater = n => n.startsWith("water");
+
+  function face(F, x, y, z, b, ni, t, extra) {
+    const X0 = x - 0.5 + b[0] / 16, Y0 = y - 0.5 + b[1] / 16, Z0 = z - 0.5 + b[2] / 16, X1 = x - 0.5 + b[3] / 16, Y1 = y - 0.5 + b[4] / 16, Z1 = z - 0.5 + b[5] / 16;
+    const dx = X1 - X0, dy = Y1 - Y0, dz = Z1 - Z0; let o, u, v, sx, sy, sw, sh;
+    switch (ni) {
+      case 0: o = [X1, Y1, Z1]; u = [0, 0, -dz]; v = [0, -dy, 0]; sx = 16 - b[5]; sw = b[5] - b[2]; sy = 16 - b[4]; sh = b[4] - b[1]; break;
+      case 1: o = [X0, Y1, Z0]; u = [0, 0, dz]; v = [0, -dy, 0]; sx = b[2]; sw = b[5] - b[2]; sy = 16 - b[4]; sh = b[4] - b[1]; break;
+      case 2: o = [X0, Y1, Z0]; u = [dx, 0, 0]; v = [0, 0, dz]; sx = b[0]; sw = b[3] - b[0]; sy = b[2]; sh = b[5] - b[2]; break;
+      case 3: o = [X0, Y0, Z1]; u = [dx, 0, 0]; v = [0, 0, -dz]; sx = b[0]; sw = b[3] - b[0]; sy = 16 - b[5]; sh = b[5] - b[2]; break;
+      case 4: o = [X0, Y1, Z1]; u = [dx, 0, 0]; v = [0, -dy, 0]; sx = b[0]; sw = b[3] - b[0]; sy = 16 - b[4]; sh = b[4] - b[1]; break;
+      default: o = [X1, Y1, Z0]; u = [-dx, 0, 0]; v = [0, -dy, 0]; sx = 16 - b[3]; sw = b[3] - b[0]; sy = 16 - b[4]; sh = b[4] - b[1];
+    }
+    const name = pick(t, ni);
+    F.push({ o, u, v, sx, sy, sw, sh, n: ni, light: LIGHT[ni], tex: name, anim: isWater(name), alpha: 1, solid: !isWater(name), ...extra,
+      c: [o[0] + (u[0] + v[0]) / 2, o[1] + (u[1] + v[1]) / 2, o[2] + (u[2] + v[2]) / 2] });
+  }
+
+  // turn a model into a flat list of the faces that can ever be seen
+  function compile(m) {
+    const F = [], solid = c => c && c.kind === "solid";
+    m.cells.forEach(c => {
+      const above = m.get(c.x, c.y + 1, c.z), b = c.kind === "water" && !(above && above.kind === "water") ? [0, 0, 0, 16, 14, 16] : FULL;
+      for (let ni = 0; ni < 6; ni++) {
+        const nb = m.get(c.x + N[ni][0], c.y + N[ni][1], c.z + N[ni][2]);
+        if (c.kind === "solid" && solid(nb)) continue;
+        if (c.kind === "glass" && nb && (nb.kind === "solid" || nb.kind === "glass")) continue;
+        if (c.kind === "water" && nb && (nb.kind === "water" || nb.kind === "solid")) continue;
+        face(F, c.x, c.y, c.z, b, ni, c.t, c.kind === "glass" ? { solid: false } : c.fade != null ? { alpha: c.fade } : undefined);
+      }
     });
-    const n = nrm.length;
-    return { n, pts: new Float32Array(pts), cen: new Float32Array(cen), nrm: new Uint8Array(nrm), day, night, rmax: rmax + 1, ymin: ymin - 0.5, ymax: ymax + 0.5,
-      order: new Uint32Array(n), depth: new Float32Array(n), canvas: document.createElement("canvas"), dirty: true, lastAng: NaN, lastNight: null };
-  }
-  const TILT = 0.52, ct = Math.cos(TILT), st = Math.sin(TILT);
-  // draw one island at base scale s into its own canvas
-  function render(isl, ang, s, night) {
-    const ca = Math.cos(ang), sa = Math.sin(ang);
-    const halfW = isl.rmax * s, top = isl.ymax * s * ct + isl.rmax * s * st, bottom = -isl.ymin * s * ct + isl.rmax * s * st;
-    const cw = Math.ceil((halfW * 2 + 4) * dpr), ch = Math.ceil((top + bottom + 4) * dpr);
-    const c = isl.canvas; if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch; }
-    isl.ox = halfW + 2; isl.oy = top + 2; isl.bw = cw / dpr; isl.bh = ch / dpr;
-    const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, isl.bw, isl.bh);
-    const vis = NORMALS.map(n => { const nz = n[0] * sa + n[2] * ca; return n[1] * st + nz * ct > 0.001; });
-    let m = 0;
-    for (let i = 0; i < isl.n; i++) {
-      if (!vis[isl.nrm[i]]) continue;
-      const x = isl.cen[i * 3], y = isl.cen[i * 3 + 1], z = isl.cen[i * 3 + 2];
-      isl.depth[i] = (x * sa + z * ca) * ct + y * st; isl.order[m++] = i;
-    }
-    const ord = Array.from(isl.order.subarray(0, m)).sort((a, b) => isl.depth[a] - isl.depth[b]);
-    const cols = night ? isl.night : isl.day, P = isl.pts, ox = isl.ox, oy = isl.oy;
-    for (let k = 0; k < ord.length; k++) {
-      const i = ord[k], b = i * 12;
-      g.beginPath();
-      for (let j = 0; j < 4; j++) {
-        const x = P[b + j * 3], y = P[b + j * 3 + 1], z = P[b + j * 3 + 2];
-        const sx = ox + (x * ca - z * sa) * s, sy = oy - y * s * ct + (x * sa + z * ca) * s * st;
-        j ? g.lineTo(sx, sy) : g.moveTo(sx, sy);
+    for (const p of m.parts) {
+      if (solid(m.get(p.x, p.y, p.z))) continue;
+      if (p.cross) {
+        for (const s of [1, -1]) F.push({ o: [p.x - 0.45, p.y + 0.5, p.z - 0.45 * s], u: [0.9, 0, 0.9 * s], v: [0, -1, 0], sx: 0, sy: 0, sw: 16, sh: 16, n: 6, light: LIGHT[6], tex: p.t, alpha: 1, solid: false, c: [p.x, p.y, p.z] });
+        continue;
       }
-      g.closePath(); g.fillStyle = cols[i]; g.fill();
+      for (let ni = 0; ni < 6; ni++) {
+        const b = p.b, edge = [b[3] === 16, b[0] === 0, b[4] === 16, b[1] === 0, b[5] === 16, b[2] === 0][ni];
+        if (edge && solid(m.get(p.x + N[ni][0], p.y + N[ni][1], p.z + N[ni][2]))) continue;
+        face(F, p.x, p.y, p.z, b, ni, p.t);
+      }
     }
-    isl.lastAng = ang; isl.lastNight = night; isl.dirty = false;
+    let r = 0, ymin = 0, ymax = 0;
+    for (const f of F) for (const [a, bb] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+      const x = f.o[0] + f.u[0] * a + f.v[0] * bb, y = f.o[1] + f.u[1] * a + f.v[1] * bb, z = f.o[2] + f.u[2] * a + f.v[2] * bb;
+      r = Math.max(r, Math.hypot(x, z)); ymin = Math.min(ymin, y); ymax = Math.max(ymax, y);
+    }
+    return { F, r, ymin, ymax, order: new Uint32Array(F.length), depth: new Float32Array(F.length) };
+  }
+
+  const TILT = 0.52, ct = Math.cos(TILT), st = Math.sin(TILT);
+  // screen extent of a mesh at scale 1: half width, height above and below its origin
+  const extent = me => ({ half: me.r, top: me.ymax * ct + me.r * st, bottom: -me.ymin * ct + me.r * st });
+  // scale and origin that fit a mesh into a w x h box
+  function fit(me, w, h) {
+    const e = extent(me), s = Math.min(w / (2 * e.half), h / (e.top + e.bottom));
+    return { s, ox: w / 2, oy: (h - (e.top + e.bottom) * s) / 2 + e.top * s };
+  }
+  // draw a mesh into context g; (ox, oy) is where the model origin lands, in CSS pixels
+  function draw(g, me, { ox, oy, s, ang, night, t = 0, dpr = 1 }) {
+    const ca = Math.cos(ang), sa = Math.sin(ang), F = me.F;
+    const vis = N.map(n => n[1] * st + (n[0] * sa + n[2] * ca) * ct > 0.001);
+    let m = 0;
+    for (let i = 0; i < F.length; i++) {
+      const f = F[i]; if (f.n < 6 && !vis[f.n]) continue;
+      me.depth[i] = (f.c[0] * sa + f.c[2] * ca) * ct + f.c[1] * st; me.order[m++] = i;
+    }
+    const ord = me.order.subarray(0, m).sort((a, b) => me.depth[a] - me.depth[b]);
+    const frame = (t * 6 | 0) & 7;
+    g.imageSmoothingEnabled = false;
+    for (let k = 0; k < m; k++) {
+      const f = F[ord[k]];
+      const ux = (f.u[0] * ca - f.u[2] * sa) * s, uy = -f.u[1] * s * ct + (f.u[0] * sa + f.u[2] * ca) * s * st;
+      const vx = (f.v[0] * ca - f.v[2] * sa) * s, vy = -f.v[1] * s * ct + (f.v[0] * sa + f.v[2] * ca) * s * st;
+      if (Math.abs(ux * vy - uy * vx) < 0.05) continue;
+      const ex = ox + (f.o[0] * ca - f.o[2] * sa) * s, ey = oy - f.o[1] * s * ct + (f.o[0] * sa + f.o[2] * ca) * s * st;
+      const img = shaded(f.anim ? "water" + frame : f.tex, f.light, night);
+      // opaque faces are drawn half a pixel larger so neighbours overlap instead of leaving hairline seams
+      const pu = f.solid ? Math.min(0.08, 0.5 / Math.hypot(ux, uy)) : 0, pv = f.solid ? Math.min(0.08, 0.5 / Math.hypot(vx, vy)) : 0;
+      g.globalAlpha = f.alpha;
+      g.setTransform(dpr * ux, dpr * uy, dpr * vx, dpr * vy, dpr * ex, dpr * ey);
+      g.drawImage(img, f.sx, f.sy, f.sw, f.sh, -pu, -pv, 1 + 2 * pu, 1 + 2 * pv);
+    }
+    g.globalAlpha = 1; g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  return { Model, compile, draw, fit, extent, rng };
+})();
+
+/* The three island designs. Each returns { main, sats }: one big model and two small floating ones. */
+const ISLANDS = (() => {
+  const { Model } = VOX;
+  const GRASS = { top: "grass_top", side: "grass_side", bottom: "dirt" };
+  const LOG = { top: "log_top", bottom: "log_top", side: "log_side" };
+  const BIRCH = { top: "birch_top", bottom: "birch_top", side: "birch_side" };
+  const PATH = { top: "path_top", side: "dirt", bottom: "dirt" };
+  const CACTUS = { top: "cactus_top", bottom: "cactus_top", side: "cactus_side" };
+  const CRAFT = { top: "craft_top", side: "craft_side", bottom: "planks" };
+  const chest = dir => ({ top: "chest_top", bottom: "chest_top", side: "chest_side", front: "chest_front", dir });
+  const TORCH = { top: "torch_top", side: "torch", bottom: "torch" };
+
+  function ore(r, k) {
+    const p = r();
+    if (p < 0.05 * k) return "coal_ore"; if (p < 0.075 * k) return "iron_ore"; if (p < 0.087 * k) return "gold_ore";
+    if (p < 0.096 * k) return "lapis_ore"; if (p < 0.104 * k) return "redstone_ore"; if (p < 0.112 * k) return "diamond_ore";
+    return "stone";
+  }
+  // a round floating chunk: grass on top, a few layers of dirt, then a stone cone with ores; returns the top cells
+  function terrain(m, R, o = {}) {
+    const r = m.r, tops = [];
+    for (let x = -R; x <= R; x++) for (let z = -R; z <= R; z++) {
+      const d = Math.hypot(x, z) + r() * 0.9; if (d > R + 0.2) continue;
+      const h = o.height ? o.height(x, z) : 0;
+      const depth = Math.max(2, Math.round((R - d) * (o.taper ?? 1.05) + r() * 1.6));
+      for (let y = h; y >= -depth; y--) {
+        const under = h - y;
+        m.set(x, y, z, under === 0 ? (o.top || GRASS) : under < 3 + (r() < 0.4 ? 1 : 0) ? (o.soil || "dirt") : ore(r, o.ores ?? 1));
+      }
+      tops.push([x, h, z]);
+    }
+    return tops;
+  }
+  // Minecraft oak or birch: a 4 to 5 block trunk, two wide leaf layers, a narrow one and a plus on top
+  function tree(m, x, y, z, o = {}) {
+    const r = m.r, h = o.h ?? 4 + (r() * 2 | 0), log = o.birch ? BIRCH : LOG, leaf = o.birch ? "birch_leaves" : "oak_leaves";
+    for (let i = 0; i < h; i++) m.set(x, y + i, z, log);
+    const top = y + h - 1;
+    for (let ly = top - 1; ly <= top + 2; ly++) {
+      const rad = ly <= top ? 2 : 1;
+      for (let dx = -rad; dx <= rad; dx++) for (let dz = -rad; dz <= rad; dz++) {
+        const corner = Math.abs(dx) === rad && Math.abs(dz) === rad;
+        if (corner && (ly === top + 2 || r() < 0.5)) continue;
+        if (!m.get(x + dx, ly, z + dz)) m.set(x + dx, ly, z + dz, leaf);
+      }
+    }
+  }
+  // a fence-post pole with the Hungarian tricolour, stripes half a block tall
+  function flag(m, x, y, z, hgt = 4) {
+    for (let i = 0; i < hgt; i++) m.box(x, y + i, z, [6, 0, 6, 10, 16, 10], "planks");
+    const t = y + hgt - 1, rows = [[t, 8, 16, "wool_red"], [t, 0, 8, "wool_white"], [t - 1, 8, 16, "wool_green"]];
+    for (const [yy, a, b, c] of rows) {
+      m.box(x, yy, z, [10, a, 7, 16, b, 9], c);
+      m.box(x + 1, yy, z, [0, a, 7, 16, b, 9], c); m.box(x + 2, yy, z, [0, a, 7, 16, b, 9], c);
+      m.box(x + 3, yy, z, [0, a, 7, 8, b, 9], c);
+    }
+  }
+  // tall grass and flowers on free grass cells
+  function plants(m, tops, k = 1, skip = () => false) {
+    const r = m.r;
+    for (const [x, h, z] of tops) {
+      const c = m.get(x, h, z); if (!c || c.t !== GRASS || m.get(x, h + 1, z) || skip(x, z)) continue;
+      const p = r();
+      if (p < 0.16 * k) m.cross(x, h + 1, z, "tall_grass"); else if (p < 0.2 * k) m.cross(x, h + 1, z, "poppy"); else if (p < 0.235 * k) m.cross(x, h + 1, z, "dandelion");
+    }
+  }
+  function small(seed, R, deco) {
+    const m = new Model(seed);
+    if (deco === "sand") {
+      for (let x = -1; x <= 1; x++) for (let z = -1; z <= 1; z++) { m.set(x, 0, z, "sand"); m.set(x, -1, z, "sand"); if (!x && !z) m.set(x, -2, z, "sand"); }
+      m.box(0, 1, 0, [1, 0, 1, 15, 16, 15], CACTUS); m.box(0, 2, 0, [1, 0, 1, 15, 16, 15], CACTUS);
+      return m;
+    }
+    const tops = terrain(m, R, { ores: 2.5, taper: 0.8 });
+    if (deco === "tree") tree(m, 0, 1, 0, { h: 4 });
+    if (deco === "birch") tree(m, 0, 1, 0, { h: 4, birch: true });
+    plants(m, tops, 1.5);
+    return m;
+  }
+
+  /* 1. The original SkyBlock start: an L of grass and dirt, three blocks deep, a tree and a chest */
+  function classic() {
+    const m = new Model(11);
+    const cells = [];
+    for (let x = 0; x < 6; x++) for (let z = 0; z < 3; z++) cells.push([x, z]);
+    for (let x = 0; x < 3; x++) for (let z = 3; z < 6; z++) cells.push([x, z]);
+    for (const [cx, cz] of cells) { const x = cx - 2, z = cz - 2; m.set(x, 0, z, GRASS); m.set(x, -1, z, "dirt"); m.set(x, -2, z, "dirt"); }
+    tree(m, 3, 1, -1, { h: 5 });
+    m.box(0, 1, 3, [1, 0, 1, 15, 14, 15], chest(4));
+    flag(m, -2, 1, 3, 4);
+    return { main: m, sats: [small(5, 0, "sand"), small(23, 2, "tree")] };
+  }
+
+  /* 2. A private island: round and wide, a small hill, oak and birch trees, a pond, ores under the stone */
+  function privateIsland() {
+    const m = new Model(31);
+    const hill = (x, z) => (x + 4) ** 2 + (z + 3) ** 2 < 7 ? 1 : 0;
+    const pond = (x, z) => ((x - 3) / 2.3) ** 2 + ((z - 2) / 1.7) ** 2 < 1;
+    const shore = (x, z) => ((x - 3) / 3.3) ** 2 + ((z - 2) / 2.7) ** 2 < 1;
+    const tops = terrain(m, 9, { height: hill, ores: 1.4 });
+    for (const [x, h, z] of tops) {
+      if (pond(x, z)) { m.set(x, 0, z, "water0", "water"); m.set(x, -1, z, "sand"); }
+      else if (shore(x, z)) { m.set(x, 0, z, "sand"); m.set(x, -1, z, "sand"); }
+    }
+    tree(m, -4, 2, -3, { h: 5 });
+    tree(m, -2, 1, 5, { h: 5, birch: true });
+    tree(m, 5, 1, -5, { h: 4 });
+    m.box(1, 1, -2, [1, 0, 1, 15, 14, 15], chest(4));
+    m.set(2, 1, -2, CRAFT);
+    flag(m, -7, 1, 2, 5);
+    plants(m, tops, 1.1);
+    return { main: m, sats: [small(41, 3, "tree"), small(47, 2, "flower")] };
+  }
+
+  /* 3. The guild island: the SHU guild hall in the middle, a path to the edge and a waterfall */
+  function guildIsland() {
+    const m = new Model(53);
+    const tops = terrain(m, 8, { ores: 0.8 });
+    // house: 5 x 5, cobblestone base, log corners, plank walls, glass, a stepped spruce roof
+    const X0 = -2, X1 = 2, Z0 = -3, Z1 = 1;
+    for (let x = X0; x <= X1; x++) for (let z = Z0; z <= Z1; z++) {
+      const edge = x === X0 || x === X1 || z === Z0 || z === Z1, corner = (x === X0 || x === X1) && (z === Z0 || z === Z1);
+      m.set(x, 0, z, "cobble");
+      if (!edge) continue;
+      for (let y = 1; y <= 4; y++) m.set(x, y, z, corner ? LOG : y === 1 ? "cobble" : "planks");
+    }
+    // door in the middle of the front, windows either side and on the side walls
+    m.del(0, 1, Z1).del(0, 2, Z1);
+    m.box(0, 1, Z1, [0, 0, 13, 16, 16, 16], "door"); m.box(0, 2, Z1, [0, 0, 13, 16, 16, 16], "door");
+    for (const [x, y, z] of [[-1, 3, Z1], [1, 3, Z1], [X0, 2, -1], [X0, 3, -1], [X1, 2, -1], [X1, 3, -1], [0, 3, Z0], [-1, 3, Z0], [1, 3, Z0]]) m.set(x, y, z, "glass_lit", "glass");
+    m.box(0, 3, Z1 + 1, [0, 3, 0, 16, 13, 2], { front: "sign", dir: 4, side: "planks", top: "planks", bottom: "planks" });
+    // roof: each ring a half slab lower than the solid core inside it
+    for (let lvl = 0; lvl < 4; lvl++) {
+      const y = 5 + lvl, ax = X0 - 1 + lvl, bx = X1 + 1 - lvl, az = Z0 - 1 + lvl, bz = Z1 + 1 - lvl;
+      for (let x = ax; x <= bx; x++) for (let z = az; z <= bz; z++) {
+        const ring = x === ax || x === bx || z === az || z === bz;
+        if (ring) m.box(x, y, z, [0, 0, 0, 16, 8, 16], "spruce"); else if (lvl < 3) m.set(x, y, z, "spruce");
+      }
+    }
+    for (let y = 5; y <= 8; y++) m.set(1, y, -2, "cobble");
+    // path from the door to the edge, torches either side of the door
+    for (let z = Z1 + 1; z <= 8; z++) for (const x of [0, z % 3 === 0 ? 1 : -1]) { const c = m.get(x, 0, z); if (c && c.t === GRASS) m.set(x, 0, z, PATH); }
+    m.box(-1, 1, Z1 + 1, [7, 0, 7, 9, 10, 9], TORCH); m.box(1, 1, Z1 + 1, [7, 0, 7, 9, 10, 9], TORCH);
+    // a spring on the right running off the edge into a fall that fades out below the island
+    const wz = -1;
+    let edge = 4;
+    for (let x = 4; m.get(x, 0, wz); x++) { m.set(x, 0, wz, "water0", "water"); edge = x; }
+    for (let y = -1, i = 0; i < 10; y--, i++) m.set(edge + 1, y + 1, wz, "water0", "water", { fade: Math.max(0.05, 1 - i / 10) });
+    tree(m, -5, 1, -3, { h: 5 });
+    tree(m, 5, 1, -4, { h: 4, birch: true });
+    flag(m, -6, 1, 4, 5);
+    plants(m, tops, 1, (x, z) => x >= X0 - 1 && x <= X1 + 1 && z >= Z0 - 1 && z <= Z1 + 1);
+    return { main: m, sats: [small(61, 3, "birch"), small(67, 2, "flower")] };
+  }
+
+  return { classic, privateIsland, guildIsland };
+})();
+
+    // draw one island at scale s into canvas c; returns the bitmap and where the island's origin sits in it
+    function paint(mesh, c, j, dpr) {
+      const e = VOX.extent(mesh), halfW = e.half * j.s, top = e.top * j.s, bottom = e.bottom * j.s;
+      const cw = Math.ceil((halfW * 2 + 4) * dpr), ch = Math.ceil((top + bottom + 4) * dpr);
+      if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch; }
+      const g = c.getContext("2d"), ox = halfW + 2, oy = top + 2;
+      g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cw, ch);
+      VOX.draw(g, mesh, { ox, oy, s: j.s, ang: j.ang, night: j.night, t: j.t, dpr });
+      return { img: c.transferToImageBitmap ? c.transferToImageBitmap() : c, ox, oy, bw: cw / dpr, bh: ch / dpr };
+    }
+    return { VOX, ISLANDS, paint };
+  }
+  function islandWorker() {
+    const { VOX, ISLANDS, paint } = voxWorld();
+    let meshes = [], cvs = [];
+    onmessage = e => {
+      const d = e.data;
+      if (d.init) { const sc = ISLANDS[d.init](); meshes = [sc.main, ...sc.sats].map(VOX.compile); cvs = meshes.map(() => new OffscreenCanvas(1, 1)); return; }
+      const out = d.jobs.map(j => ({ i: j.i, ...paint(meshes[j.i], cvs[j.i], j, d.dpr) }));
+      postMessage({ out }, out.map(r => r.img));
+    };
+  }
+
+  const cv = document.getElementById("world"), ctx = cv.getContext("2d");
+  let W = 0, H = 0, dpr = 1, dirty = true;
+  function size() { dpr = Math.min(1.5, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); dirty = true; }
+  const DESIGN = "guildIsland";
+  const islands = [0, 1, 2].map(() => ({ img: null, ox: 0, oy: 0, bw: 0, bh: 0 }));
+  const [main, ...small] = islands;
+  let worker = null, busy = false, local = null;
+  function startLocal() {
+    const w = voxWorld(), sc = w.ISLANDS[DESIGN]();
+    local = { w, meshes: [sc.main, ...sc.sats].map(w.VOX.compile), cvs: islands.map(() => document.createElement("canvas")) };
+  }
+  try {
+    if (typeof OffscreenCanvas === "undefined" || !new OffscreenCanvas(1, 1).getContext("2d")) throw new Error("no worker canvas");
+    const url = URL.createObjectURL(new Blob([`const voxWorld = ${voxWorld};\n(${islandWorker})();`], { type: "text/javascript" }));
+    worker = new Worker(url);
+    worker.onmessage = e => {
+      for (const r of e.data.out) { const isl = islands[r.i]; if (isl.img && isl.img.close) isl.img.close(); Object.assign(isl, r); }
+      busy = false; if (reduce) requestAnimationFrame(frame);
+    };
+    worker.onerror = () => { worker = null; busy = false; startLocal(); dirty = true; requestAnimationFrame(frame); };
+    worker.postMessage({ init: DESIGN });
+  } catch (err) { worker = null; startLocal(); }
+  // ask for new island bitmaps; false when the worker is still on the previous request
+  function request(jobs) {
+    if (worker) { if (busy) return false; busy = true; worker.postMessage({ jobs, dpr }); return true; }
+    if (!local) return false;
+    for (const j of jobs) Object.assign(islands[j.i], local.w.paint(local.meshes[j.i], local.cvs[j.i], j, dpr));
+    return true;
   }
   function place(isl, cx, cy, scale, alpha) {
-    if (alpha <= 0.01) return;
+    if (alpha <= 0.01 || !isl.img) return;
     ctx.globalAlpha = alpha;
-    ctx.drawImage(isl.canvas, cx - isl.ox * scale, cy - isl.oy * scale, isl.bw * scale, isl.bh * scale);
+    ctx.drawImage(isl.img, cx - isl.ox * scale, cy - isl.oy * scale, isl.bw * scale, isl.bh * scale);
   }
-
-  const mainI = island(3, 8);
-  addTree(mainI, -3, -2); addTree(mainI, 2, 3);
-  mainI.put(1, 1, -1, "#9a6b32"); // chest
-  for (let y = 1; y <= 7; y++) mainI.put(5, y, -3, "#d0d0d0");
-  ["#ce2939", "#ffffff", "#477050"].forEach((c, k) => { for (let x = 6; x <= 8; x++) mainI.put(x, 7 - k, -3, c); });
-  const main = build(mainI), small = [build(island(9, 3)), build(island(15, 2))];
-  const islands = [main, ...small];
   size(); addEventListener("resize", size);
 
   const motes = Array.from({ length: 22 }, (_, i) => ({ x: Math.random(), y: Math.random(), z: 0.3 + Math.random() * 0.7, ph: Math.random() * 6.28, c: ["#ffffff", "#5aa83a", "#ce2939", "#5be3d9"][i % 4] }));
@@ -665,7 +1005,7 @@ const SHU = (() => {
   const SPOTS = [[0.72, 0.5, 1, 1], [0.86, 0.8, 0.42, 0.95], [0.88, 0.18, 0.3, 0.6], [0.1, 0.86, 0.38, 0.7], [0.9, 0.86, 0.38, 0.7], [0.13, 0.34, 0.4, 0.9]];
   const SPOTS_M = [[0.68, 0.15, 0.7, 1], [0.82, 0.88, 0.4, 0.5], [0.85, 0.1, 0.3, 0.35], [0.15, 0.92, 0.35, 0.4], [0.85, 0.92, 0.35, 0.4], [0.5, 0.16, 0.45, 0.9]];
   const spot = innerWidth <= 900 ? { x: 0.68, y: 0.15, s: 0.7, a: 1 } : { x: 0.72, y: 0.5, s: 1, a: 1 };
-  const t0 = performance.now(); let prev = t0, ease = 0, lastRender = -1e9, lastSmall = -1e9;
+  const t0 = performance.now(); let prev = t0, ease = 0, lastRender = -1e9, lastSmall = -1e9, lastNight = null;
   function frame(now) {
     const dt = Math.min(64, now - prev); prev = now;
     const t = reduce ? 0 : (now - t0) / 1000, k8 = 1 - Math.exp(-dt / 200);
@@ -677,10 +1017,14 @@ const SHU = (() => {
     const mix = j => S[lo][j] + (S[hi][j] - S[lo][j]) * k;
     spot.x += (mix(0) - spot.x) * k8; spot.y += (mix(1) - spot.y) * k8; spot.s += (mix(2) - spot.s) * k8; spot.a += (mix(3) - spot.a) * k8;
     const base = Math.min(W, H) * (wide ? 0.034 : 0.03);
-    // re-draw the islands' rotation at about 30 and 15 frames a second; placing them happens every frame
-    if (main.dirty || main.lastNight !== night || now - lastRender > 32) { render(main, t * 0.12 + 0.6, base, night); lastRender = now; }
-    if (small[0].dirty || small[0].lastNight !== night || now - lastSmall > 64) {
-      render(small[0], t * 0.15 + 1, Math.min(W, H) * 0.012, night); render(small[1], -t * 0.2, Math.min(W, H) * 0.01, night); lastSmall = now;
+    // new island bitmaps about 30 and 15 times a second (half that without a worker); placing them happens every frame
+    const fresh = dirty || night !== lastNight, slow = worker ? 1 : 2;
+    const mainDue = fresh || now - lastRender > 32 * slow, smallDue = fresh || now - lastSmall > 64 * slow;
+    if (mainDue || smallDue) {
+      const jobs = [], sm = Math.min(W, H) * 0.012;
+      if (mainDue) jobs.push({ i: 0, ang: t * 0.12 + 0.6, s: base, night, t });
+      if (smallDue) jobs.push({ i: 1, ang: t * 0.15 + 1, s: sm, night, t }, { i: 2, ang: -t * 0.2, s: sm, night, t });
+      if (request(jobs)) { if (mainDue) lastRender = now; if (smallDue) lastSmall = now; lastNight = night; dirty = false; }
     }
     ctx.globalAlpha = 1; ctx.clearRect(0, 0, W, H);
     place(small[0], W * (0.16 + ease * 0.1), H * (0.24 - ease * 0.1), 1, 0.45);
