@@ -3,7 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<script>try{var q=new URLSearchParams(location.search).get('d');if(q)localStorage.setItem('shu-design',q);var d=localStorage.getItem('shu-design');if(!q&&d&&d!=='egi'){var m={egi:'index.html',ejszaka:'ejszaka.html',klasszikus:'klasszikus.html'};if(m[d])location.replace(m[d]);}}catch(e){}</script>
 <style>body{margin:0}[hidden]{display:none!important}</style>
 <title>SHU Égi szigetek</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -32,7 +31,10 @@
 }
 * { box-sizing: border-box; }
 html { background: var(--sky); }
-body { margin: 0; background: var(--sky); color: var(--ink); font: 400 1.0625rem/1.55 var(--f); transition: background-color 1.2s var(--ease), color 1.2s var(--ease); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+body { margin: 0; background: #cfe2f3; color: var(--ink); font: 400 1.0625rem/1.55 var(--f); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+.skies i { position: fixed; inset: 0; z-index: 0; opacity: 0; transition: opacity 1.2s var(--ease); will-change: opacity; pointer-events: none; }
+.skies i:nth-child(1) { background: #cfe2f3; opacity: 1; } .skies i:nth-child(2) { background: #e9c9b6; } .skies i:nth-child(3) { background: #142235; }
+body[data-sky="dusk"] .skies i:nth-child(2), body[data-sky="night"] .skies i:nth-child(3) { opacity: 1; }
 body[data-sky="dusk"] { --sky: #e9c9b6; }
 body[data-sky="night"] { --sky: #142235; --ink: #eef3f8; --ink-soft: #b5c4d6; --card: #1d2f46; --card-2: #263b56; }
 ::selection { background: var(--ph); color: #0e1a2b; }
@@ -95,7 +97,7 @@ p { margin: 0; text-wrap: pretty; }
 .flow-track { position: absolute; inset: 0; transform-style: preserve-3d; }
 .slide { position: absolute; left: 50%; top: 0; width: min(340px, 78vw); height: 440px; margin-left: calc(min(340px, 78vw) / -2);
   background: var(--card); border-radius: 28px; padding: 32px; display: flex; flex-direction: column; gap: 14px;
-  transition: transform 700ms var(--ease), opacity 700ms var(--ease), filter 700ms var(--ease); backface-visibility: hidden; }
+  transition: transform 700ms var(--ease), opacity 700ms var(--ease); backface-visibility: hidden; }
 .slide canvas { width: 96px; height: 96px; image-rendering: pixelated; }
 .slide h3 { font-size: 2rem; margin-top: auto; }
 .slide p { color: var(--ink-soft); }
@@ -165,22 +167,13 @@ p { margin: 0; text-wrap: pretty; }
   .slide, .rise, body { transition: none; }
   .js .later:not(.seen) .rise { opacity: 1; transform: none; }
 }
-</style><style>
-.design-switch { position: fixed; z-index: 6; left: max(16px, env(safe-area-inset-left, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 999px; background: var(--card, var(--surface, var(--paper))); color: var(--ink);
-  font: 600 0.875rem/1 var(--f, var(--f-text)); }
-.design-switch span { padding: 0 8px 0 10px; color: var(--ink-soft); font-weight: 500; }
-.design-switch a { text-decoration: none; padding: 9px 14px; border-radius: 999px; transition: background-color 200ms; }
-.design-switch a:hover { background: var(--card-2, var(--surface-2, var(--paper-2))); }
-@media (max-width: 600px) { .design-switch span { display: none; } .design-switch a { padding: 8px 12px; } }
-.design-switch a[aria-current="page"] { background: var(--ink); color: var(--card, var(--bg, var(--paper))); }
 </style>
 </head>
 <body>
 
+<div class="skies" aria-hidden="true"><i></i><i></i><i></i></div>
 <canvas id="world" aria-hidden="true"></canvas>
 
-<nav class="design-switch" aria-label="Dizájn választása"><span>Dizájn</span><a href="index.html" data-design="egi" aria-current="page">Égi szigetek</a><a href="ejszaka.html" data-design="ejszaka">Éjszaka</a><a href="klasszikus.html" data-design="klasszikus">Klasszikus</a></nav>
 <header class="bar">
   <a class="mark" href="#top">[SHU]<span>.</span></a>
   <nav aria-label="Szekciók">
@@ -323,51 +316,87 @@ const SHU = (() => {
     document.querySelectorAll(".js-discord-text").forEach(s => { s.textContent = DISCORD_INVITE.replace(/^https?:\/\//, ""); s.classList.remove("ph"); });
   }
 
-  /* ---------- Smooth, panel-by-panel scrolling ---------- */
+  /* ---------- Layout cache: panel positions are read once, not on every frame ---------- */
   const panels = [...document.querySelectorAll("[data-panel]")];
-  let target = scrollY, cur = scrollY, raf = 0, animating = false;
-  const maxY = () => document.documentElement.scrollHeight - innerHeight;
-  function loop() {
-    cur += (target - cur) * 0.11;
-    if (Math.abs(target - cur) < 0.6) { cur = target; raf = 0; animating = false; }
-    else raf = requestAnimationFrame(loop);
-    scrollTo(0, cur);
+  let M = [], vh = innerHeight, docMax = 0;
+  function measure() {
+    vh = innerHeight;
+    M = panels.map(p => { const r = p.getBoundingClientRect(); return { top: r.top + scrollY, h: r.height }; });
+    docMax = Math.max(0, document.documentElement.scrollHeight - vh);
   }
-  function go(y) {
-    if (!raf) { cur = scrollY; }
-    target = Math.max(0, Math.min(maxY(), y)); animating = true;
-    if (!raf) raf = requestAnimationFrame(loop);
+  measure();
+  if ("ResizeObserver" in window) new ResizeObserver(() => { measure(); onScroll(); }).observe(document.body);
+  addEventListener("resize", () => { measure(); onScroll(); });
+  addEventListener("load", () => { measure(); onScroll(); });
+  if (document.fonts) document.fonts.ready.then(() => { measure(); onScroll(); });
+
+  function snapY(i, dir) {
+    const { top, h } = M[i];
+    if (h <= vh) return top - (vh - h) / 2;
+    return dir < 0 ? top + h - vh : top;
   }
-  function rectOf(p) { const r = p.getBoundingClientRect(); return { top: r.top + scrollY, h: r.height }; }
-  function snapY(p, dir) {
-    const { top, h } = rectOf(p);
-    if (h <= innerHeight) return top - (innerHeight - h) / 2;
-    return dir < 0 ? top + h - innerHeight : top;
+  // distance of panel i from the viewport centre, in px (0 while it covers the centre)
+  function dist(i, y = scrollY) {
+    const mid = y + vh / 2, { top, h } = M[i];
+    return mid >= top && mid <= top + h ? 0 : Math.min(Math.abs(top - mid), Math.abs(top + h - mid));
   }
-  function currentIndex() {
-    let bi = 0, bd = Infinity; const mid = innerHeight / 2;
-    panels.forEach((p, i) => {
-      const r = p.getBoundingClientRect();
-      const d = (r.top <= mid && r.bottom >= mid) ? 0 : Math.min(Math.abs(r.top - mid), Math.abs(r.bottom - mid));
-      if (d < bd) { bd = d; bi = i; }
-    });
-    return bi;
+  function currentIndex(y = scrollY) { let bi = 0, bd = Infinity; for (let i = 0; i < M.length; i++) { const d = dist(i, y); if (d < bd) { bd = d; bi = i; } } return bi; }
+  // a continuous section index (2.5 = halfway between the 3rd and 4th) for effects that follow the scroll
+  function focusFloat(y = scrollY) {
+    const mid = y + vh / 2, c = M.map(m => m.top + Math.min(m.h, vh) / 2 + Math.max(0, Math.min(mid - m.top - vh / 2, m.h - vh)));
+    if (mid <= c[0]) return 0;
+    for (let i = 0; i < c.length - 1; i++) if (mid <= c[i + 1]) return i + (mid - c[i]) / Math.max(1, c[i + 1] - c[i]);
+    return c.length - 1;
   }
+
+  /* ---------- Smooth scrolling: time-based, so it runs at the screen's own refresh rate ---------- */
+  let anim = null, raf = 0;
+  const easeInOut = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  function run(now) {
+    raf = 0; if (!anim) return;
+    let y;
+    if (anim.kind === "tween") {
+      const k = Math.min(1, (now - anim.t0) / anim.dur);
+      y = anim.from + (anim.to - anim.from) * easeInOut(k);
+      if (k >= 1) anim = null;
+    } else {
+      // critically damped glide toward the target, independent of frame rate
+      const dt = Math.min(64, now - anim.last); anim.last = now;
+      anim.y += (anim.to - anim.y) * (1 - Math.exp(-dt / 110));
+      y = anim.y;
+      if (Math.abs(anim.to - anim.y) < 0.5) { y = anim.to; anim = null; }
+    }
+    scrollTo(0, y);
+    if (anim) raf = requestAnimationFrame(run);
+  }
+  const clampY = y => Math.max(0, Math.min(docMax, y));
+  function tweenTo(y) {
+    const to = clampY(y), from = scrollY, d = Math.abs(to - from);
+    anim = { kind: "tween", from, to, t0: performance.now(), dur: Math.min(1150, 650 + d * 0.35) };
+    if (!raf) raf = requestAnimationFrame(run);
+  }
+  function glideBy(dy) {
+    if (!anim || anim.kind !== "glide") anim = { kind: "glide", y: scrollY, to: scrollY, last: performance.now() };
+    anim.to = clampY(anim.to + dy);
+    if (!raf) raf = requestAnimationFrame(run);
+  }
+  const busy = () => anim && anim.kind === "tween";
   function goPanel(i, dir) {
     if (i < 0 || i >= panels.length) return;
-    if (reduce || !fine) { scrollTo({ top: snapY(panels[i], dir), behavior: reduce ? "auto" : "smooth" }); return; }
-    lock(); go(snapY(panels[i], dir));
+    measure();
+    if (reduce || !fine) { scrollTo({ top: snapY(i, dir), behavior: reduce ? "auto" : "smooth" }); return; }
+    tweenTo(snapY(i, dir)); lockUntilQuiet();
   }
   let locked = false, quietT = 0, acc = 0, accT = 0;
-  function lock() { locked = true; clearTimeout(quietT); quietT = setTimeout(tryUnlock, 700); }
-  function tryUnlock() { if (animating) { quietT = setTimeout(tryUnlock, 80); } else locked = false; }
-  function step(dy) {
-    const i = currentIndex(), p = panels[i], r = p.getBoundingClientRect();
-    // a panel taller than the screen scrolls inside itself first
-    if (r.height > innerHeight + 4) {
-      if (dy > 0 && r.bottom > innerHeight + 2) { go(Math.min((raf ? target : scrollY) + dy, r.bottom + scrollY - innerHeight)); return true; }
-      if (dy < 0 && r.top < -2) { go(Math.max((raf ? target : scrollY) + dy, r.top + scrollY)); return true; }
-    }
+  function lockUntilQuiet() { locked = true; clearTimeout(quietT); quietT = setTimeout(tryUnlock, 400); }
+  function tryUnlock() { if (busy()) quietT = setTimeout(tryUnlock, 60); else locked = false; }
+  // inside a section taller than the screen the wheel glides; at its edge it hands over to the next section
+  function stepInside(dy) {
+    const base = anim && anim.kind === "glide" ? anim.to : scrollY;
+    const i = currentIndex(base), { top, h } = M[i];
+    if (h <= vh + 4) return false;
+    if (dy > 0 && base < top + h - vh - 2) { glideBy(Math.min(dy, top + h - vh - base)); return true; }
+    if (dy < 0 && base > top + 2) { glideBy(Math.max(dy, top - base)); return true; }
     return false;
   }
   if (!reduce && fine) {
@@ -375,10 +404,10 @@ const SHU = (() => {
       if (e.ctrlKey || e.target.closest("[data-native-scroll]")) return;
       e.preventDefault();
       const dy = e.deltaMode === 1 ? e.deltaY * 32 : e.deltaY;
-      if (locked) { clearTimeout(quietT); quietT = setTimeout(tryUnlock, 160); return; }
-      if (step(dy)) return;
-      acc += dy; clearTimeout(accT); accT = setTimeout(() => acc = 0, 220);
-      if (Math.abs(acc) > 24) { const dir = acc > 0 ? 1 : -1; acc = 0; goPanel(currentIndex() + dir, dir); }
+      if (locked) { clearTimeout(quietT); quietT = setTimeout(tryUnlock, 140); return; }
+      if (stepInside(dy)) return;
+      acc += dy; clearTimeout(accT); accT = setTimeout(() => acc = 0, 200);
+      if (Math.abs(acc) > 20) { const dir = acc > 0 ? 1 : -1; acc = 0; goPanel(currentIndex() + dir, dir); }
     }, { passive: false });
     addEventListener("keydown", e => {
       if (e.target.closest("input, textarea, select, [contenteditable]") || e.altKey || e.metaKey || e.ctrlKey) return;
@@ -388,10 +417,11 @@ const SHU = (() => {
       else if (down || up) {
         if (e.target.closest("[data-slider]") && (e.key === "ArrowDown" || e.key === "ArrowUp")) return;
         e.preventDefault(); if (locked) return;
-        const dy = down ? innerHeight * 0.6 : -innerHeight * 0.6;
-        if (!step(dy)) goPanel(currentIndex() + (down ? 1 : -1), down ? 1 : -1);
+        if (!stepInside(down ? vh * 0.6 : -vh * 0.6)) goPanel(currentIndex() + (down ? 1 : -1), down ? 1 : -1);
       }
     });
+    // a scrollbar drag or other native scroll cancels our animation instead of fighting it
+    addEventListener("mousedown", e => { if (e.clientX >= document.documentElement.clientWidth) anim = null; });
   }
   document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener("click", e => {
     const id = a.getAttribute("href"); if (id.length < 2) return;
@@ -401,31 +431,32 @@ const SHU = (() => {
     if (i >= 0) goPanel(i, 1); else scrollTo({ top: el.getBoundingClientRect().top + scrollY, behavior: reduce ? "auto" : "smooth" });
   }));
 
-  /* ---------- Focus: the panel at the centre is sharp, the rest blur ---------- */
+  /* ---------- Focus: the section at the centre is sharp, the rest blur ----------
+     Only a class flips when the focused section changes; CSS does the rest. */
+  const fx = document.createElement("style");
+  // the blur radius itself is not animated (that would re-rasterise whole sections every frame); opacity and scale carry the fade
+  fx.textContent = `.panel-in{transition:opacity 700ms cubic-bezier(.23,1,.32,1),transform 700ms cubic-bezier(.23,1,.32,1);will-change:opacity,transform}
+.js .panel:not(.focused) .panel-in{filter:blur(${fine ? 5 : 3}px);opacity:.4;transform:scale(.975)}
+@media (prefers-reduced-motion: reduce){.panel-in{transition:none}.js .panel:not(.focused) .panel-in{transform:none}}`;
+  document.head.appendChild(fx);
   const listeners = [];
-  let ticking = false;
+  let ticking = false, focusedIdx = -1;
   function focusPass() {
-    ticking = false; const vh = innerHeight, mid = vh / 2;
-    panels.forEach((p, i) => {
-      const r = p.getBoundingClientRect();
-      const d = (r.top <= mid && r.bottom >= mid) ? 0 : Math.min(Math.abs(r.top - mid), Math.abs(r.bottom - mid));
-      const f = Math.max(0, d / vh - 0.12);
-      const inner = p.querySelector(".panel-in") || p;
-      const blur = Math.min(12, f * 30), op = 1 - Math.min(0.6, f * 1.5), sc = 1 - Math.min(0.05, f * 0.1);
-      inner.style.filter = blur > 0.2 ? `blur(${blur.toFixed(1)}px)` : "none";
-      inner.style.opacity = op.toFixed(3);
-      inner.style.transform = reduce ? "" : `scale(${sc.toFixed(4)})`;
-      const on = f < 0.08;
-      if (on && !p.classList.contains("seen")) p.classList.add("seen");
-      p.classList.toggle("focused", on);
-    });
+    ticking = false;
+    let fi = -1, bd = Infinity;
+    for (let i = 0; i < M.length; i++) { const d = dist(i); if (d < bd) { bd = d; fi = i; } }
+    if (bd > vh * 0.12) fi = -1; // between two sections: neither is in focus yet
+    if (fi !== focusedIdx) {
+      focusedIdx = fi;
+      panels.forEach((p, i) => p.classList.toggle("focused", i === fi));
+      if (fi >= 0) panels[fi].classList.add("seen");
+    }
     listeners.forEach(fn => fn());
   }
-  const onScroll = () => { if (!ticking) { ticking = true; requestAnimationFrame(focusPass); } };
+  function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(focusPass); } }
   addEventListener("scroll", onScroll, { passive: true });
-  addEventListener("resize", onScroll);
-  // panels that start off screen wait for focus to play their entrance
-  panels.forEach(p => { const r = p.getBoundingClientRect(); if (r.top < innerHeight * 0.9) p.classList.add("seen"); else p.classList.add("later"); });
+  // sections that start off screen wait for focus to play their entrance
+  panels.forEach((p, i) => { if (M[i].top - scrollY < vh * 0.9) p.classList.add("seen"); else p.classList.add("later"); });
   focusPass();
   setTimeout(() => panels.forEach(p => p.classList.add("seen")), 9000);
 
@@ -483,7 +514,7 @@ const SHU = (() => {
     el.addEventListener("click", e => { if (moved) { e.preventDefault(); e.stopPropagation(); } }, true);
   }
 
-  return { reduce, fine, panels, goPanel, onFocusPass: fn => listeners.push(fn), drag, drawIcon, refresh: focusPass };
+  return { reduce, fine, panels, goPanel, onFocusPass: fn => listeners.push(fn), drag, drawIcon, refresh: focusPass, focusFloat, focusedIndex: () => focusedIdx };
 })();
 
 </script>
@@ -494,14 +525,15 @@ const SHU = (() => {
   /* sky colour and nav state follow the focused panel */
   const dots = document.getElementById("dots");
   panels.forEach((p, i) => { const b = document.createElement("button"); b.type = "button"; b.setAttribute("aria-label", p.getAttribute("aria-label") || `Szekció ${i + 1}`); b.addEventListener("click", () => SHU.goPanel(i, 1)); dots.appendChild(b); });
-  let focusIdx = 0;
+  const dotBtns = [...dots.querySelectorAll("button")], navLinks = [...document.querySelectorAll(".bar nav a")];
+  let focusIdx = -1;
   onFocusPass(() => {
-    const i = panels.findIndex(p => p.classList.contains("focused"));
-    if (i < 0) return; focusIdx = i;
+    const i = SHU.focusedIndex();
+    if (i < 0 || i === focusIdx) return; focusIdx = i;
     document.body.dataset.sky = panels[i].dataset.sky || "day";
-    dots.querySelectorAll("button").forEach((b, k) => b.setAttribute("aria-current", k === i ? "true" : "false"));
+    dotBtns.forEach((b, k) => b.setAttribute("aria-current", k === i ? "true" : "false"));
     const id = panels[i].id;
-    document.querySelectorAll(".bar nav a").forEach(a => a.setAttribute("aria-current", a.getAttribute("href") === "#" + id ? "true" : "false"));
+    navLinks.forEach(a => a.setAttribute("aria-current", a.getAttribute("href") === "#" + id ? "true" : "false"));
   });
   SHU.refresh();
 
@@ -516,8 +548,7 @@ const SHU = (() => {
       const a = Math.max(-1, Math.min(1, off));
       const tx = off * w * 0.62, tz = -Math.abs(off) * 200, ry = -a * 42;
       s.style.transform = `translateX(${tx}px) translateZ(${tz}px) rotateY(${ry}deg)`;
-      s.style.opacity = Math.abs(off) > 2.4 ? 0 : 1 - Math.abs(off) * 0.22;
-      s.style.filter = Math.abs(off) < 0.5 ? "none" : `blur(${Math.min(6, Math.abs(off) * 2.5).toFixed(1)}px)`;
+      s.style.opacity = Math.abs(off) > 2.4 ? 0 : 1 - Math.abs(off) * 0.3;
       s.style.zIndex = 100 - Math.round(Math.abs(off) * 10);
       s.setAttribute("aria-hidden", Math.abs(o) > 0 ? "true" : "false");
       s.style.transitionDuration = dragX ? "0ms" : "";
@@ -533,11 +564,12 @@ const SHU = (() => {
   addEventListener("resize", layout);
   layout();
 
-  /* ---------- voxel world ---------- */
+  /* ---------- voxel world ----------
+     Each island is drawn into its own small offscreen canvas only when its rotation has moved on (about 30 times a second);
+     every screen frame just places those bitmaps, so the page keeps the display's full frame rate. */
   const cv = document.getElementById("world"), ctx = cv.getContext("2d");
   let W = 0, H = 0, dpr = 1;
-  function size() { dpr = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
-  size(); addEventListener("resize", size);
+  function size() { dpr = Math.min(1.5, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); islands.forEach(isl => isl.dirty = true); }
 
   function rng(s) { return () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
   function island(seed, R) {
@@ -560,98 +592,114 @@ const SHU = (() => {
       if (I.r() < 0.9) I.put(tx + x, y, tz + z, I.r() < 0.5 ? "#3f8a2f" : "#357a28");
     }
   }
-  function build(I) {
-    const faces = []; const dirs = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
-    I.vox.forEach(v => dirs.forEach(n => { if (!I.vox.has(I.key(v.x + n[0], v.y + n[1], v.z + n[2]))) faces.push({ v, n }); }));
-    return faces;
-  }
-  const main = island(3, 8);
-  addTree(main, -3, -2); addTree(main, 2, 3);
-  main.put(1, 1, -1, "#9a6b32"); // chest
-  for (let y = 1; y <= 7; y++) main.put(5, y, -3, "#d0d0d0");
-  ["#ce2939", "#ffffff", "#477050"].forEach((c, k) => { for (let x = 6; x <= 8; x++) main.put(x, 7 - k, -3, c); });
-  const mainFaces = build(main);
-  const small = [island(9, 3), island(15, 2)].map(build);
-
+  const NORMALS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+  const LIGHT = [0.82, 0.7, 1.0, 0.5, 0.9, 0.66];
+  const CORNERS = [
+    [[.5, -.5, -.5], [.5, -.5, .5], [.5, .5, .5], [.5, .5, -.5]], [[-.5, -.5, -.5], [-.5, .5, -.5], [-.5, .5, .5], [-.5, -.5, .5]],
+    [[-.5, .5, -.5], [.5, .5, -.5], [.5, .5, .5], [-.5, .5, .5]], [[-.5, -.5, -.5], [-.5, -.5, .5], [.5, -.5, .5], [.5, -.5, -.5]],
+    [[-.5, -.5, .5], [-.5, .5, .5], [.5, .5, .5], [.5, -.5, .5]], [[-.5, -.5, -.5], [.5, -.5, -.5], [.5, .5, -.5], [-.5, .5, -.5]]];
   function shade(hex, f) { const n = parseInt(hex.slice(1), 16); return `rgb(${Math.min(255, (n >> 16) * f) | 0},${Math.min(255, ((n >> 8) & 255) * f) | 0},${Math.min(255, (n & 255) * f) | 0})`; }
-  const CORNERS = { "1,0,0": [[.5, -.5, -.5], [.5, -.5, .5], [.5, .5, .5], [.5, .5, -.5]], "-1,0,0": [[-.5, -.5, -.5], [-.5, .5, -.5], [-.5, .5, .5], [-.5, -.5, .5]],
-    "0,1,0": [[-.5, .5, -.5], [.5, .5, -.5], [.5, .5, .5], [-.5, .5, .5]], "0,-1,0": [[-.5, -.5, -.5], [-.5, -.5, .5], [.5, -.5, .5], [.5, -.5, -.5]],
-    "0,0,1": [[-.5, -.5, .5], [-.5, .5, .5], [.5, .5, .5], [.5, -.5, .5]], "0,0,-1": [[-.5, -.5, -.5], [.5, -.5, -.5], [.5, .5, -.5], [-.5, .5, -.5]] };
-  const LIGHT = { "0,1,0": 1.0, "1,0,0": 0.82, "-1,0,0": 0.7, "0,0,1": 0.9, "0,0,-1": 0.66, "0,-1,0": 0.5 };
-  function draw(faces, cx, cy, s, ang, tilt, alpha, night) {
-    const ca = Math.cos(ang), sa = Math.sin(ang), ct = Math.cos(tilt), st = Math.sin(tilt);
-    const list = [];
-    for (const f of faces) {
-      const nx = f.n[0] * ca - f.n[2] * sa, nz = f.n[0] * sa + f.n[2] * ca, ny = f.n[1];
-      if (ny * st + nz * ct <= 0.001) continue;
-      const v = f.v, xr = v.x * ca - v.z * sa, zr = v.x * sa + v.z * ca;
-      list.push({ f, depth: zr * ct + v.y * st + (nz * ct + ny * st) * 0.5 });
-    }
-    list.sort((a, b) => a.depth - b.depth);
-    ctx.globalAlpha = alpha;
-    const lightK = night ? 0.55 : 1;
-    for (const { f } of list) {
-      const k = f.n.join(","), pts = CORNERS[k];
-      ctx.beginPath();
-      pts.forEach((p, i) => {
-        const x = f.v.x + p[0], y = f.v.y + p[1], z = f.v.z + p[2];
-        const xr = x * ca - z * sa, zr = x * sa + z * ca;
-        const sx = cx + xr * s, sy = cy - y * s * ct + zr * s * st;
-        i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy);
+  // flatten every exposed face once: its corners, centre, normal and both colours
+  function build(I) {
+    const pts = [], cen = [], nrm = [], day = [], night = []; let rmax = 0, ymin = 0, ymax = 0;
+    I.vox.forEach(v => {
+      rmax = Math.max(rmax, Math.hypot(v.x, v.z)); ymin = Math.min(ymin, v.y); ymax = Math.max(ymax, v.y);
+      NORMALS.forEach((n, ni) => {
+        if (I.vox.has(I.key(v.x + n[0], v.y + n[1], v.z + n[2]))) return;
+        CORNERS[ni].forEach(c => pts.push(v.x + c[0], v.y + c[1], v.z + c[2]));
+        cen.push(v.x + n[0] * 0.5, v.y + n[1] * 0.5, v.z + n[2] * 0.5); nrm.push(ni);
+        day.push(shade(v.c, LIGHT[ni])); night.push(shade(v.c, LIGHT[ni] * 0.55));
       });
-      ctx.closePath();
-      ctx.fillStyle = shade(f.v.c, LIGHT[k] * lightK);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
+    });
+    const n = nrm.length;
+    return { n, pts: new Float32Array(pts), cen: new Float32Array(cen), nrm: new Uint8Array(nrm), day, night, rmax: rmax + 1, ymin: ymin - 0.5, ymax: ymax + 0.5,
+      order: new Uint32Array(n), depth: new Float32Array(n), canvas: document.createElement("canvas"), dirty: true, lastAng: NaN, lastNight: null };
   }
+  const TILT = 0.52, ct = Math.cos(TILT), st = Math.sin(TILT);
+  // draw one island at base scale s into its own canvas
+  function render(isl, ang, s, night) {
+    const ca = Math.cos(ang), sa = Math.sin(ang);
+    const halfW = isl.rmax * s, top = isl.ymax * s * ct + isl.rmax * s * st, bottom = -isl.ymin * s * ct + isl.rmax * s * st;
+    const cw = Math.ceil((halfW * 2 + 4) * dpr), ch = Math.ceil((top + bottom + 4) * dpr);
+    const c = isl.canvas; if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch; }
+    isl.ox = halfW + 2; isl.oy = top + 2; isl.bw = cw / dpr; isl.bh = ch / dpr;
+    const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, isl.bw, isl.bh);
+    const vis = NORMALS.map(n => { const nz = n[0] * sa + n[2] * ca; return n[1] * st + nz * ct > 0.001; });
+    let m = 0;
+    for (let i = 0; i < isl.n; i++) {
+      if (!vis[isl.nrm[i]]) continue;
+      const x = isl.cen[i * 3], y = isl.cen[i * 3 + 1], z = isl.cen[i * 3 + 2];
+      isl.depth[i] = (x * sa + z * ca) * ct + y * st; isl.order[m++] = i;
+    }
+    const ord = Array.from(isl.order.subarray(0, m)).sort((a, b) => isl.depth[a] - isl.depth[b]);
+    const cols = night ? isl.night : isl.day, P = isl.pts, ox = isl.ox, oy = isl.oy;
+    for (let k = 0; k < ord.length; k++) {
+      const i = ord[k], b = i * 12;
+      g.beginPath();
+      for (let j = 0; j < 4; j++) {
+        const x = P[b + j * 3], y = P[b + j * 3 + 1], z = P[b + j * 3 + 2];
+        const sx = ox + (x * ca - z * sa) * s, sy = oy - y * s * ct + (x * sa + z * ca) * s * st;
+        j ? g.lineTo(sx, sy) : g.moveTo(sx, sy);
+      }
+      g.closePath(); g.fillStyle = cols[i]; g.fill();
+    }
+    isl.lastAng = ang; isl.lastNight = night; isl.dirty = false;
+  }
+  function place(isl, cx, cy, scale, alpha) {
+    if (alpha <= 0.01) return;
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(isl.canvas, cx - isl.ox * scale, cy - isl.oy * scale, isl.bw * scale, isl.bh * scale);
+  }
+
+  const mainI = island(3, 8);
+  addTree(mainI, -3, -2); addTree(mainI, 2, 3);
+  mainI.put(1, 1, -1, "#9a6b32"); // chest
+  for (let y = 1; y <= 7; y++) mainI.put(5, y, -3, "#d0d0d0");
+  ["#ce2939", "#ffffff", "#477050"].forEach((c, k) => { for (let x = 6; x <= 8; x++) mainI.put(x, 7 - k, -3, c); });
+  const main = build(mainI), small = [build(island(9, 3)), build(island(15, 2))];
+  const islands = [main, ...small];
+  size(); addEventListener("resize", size);
 
   const motes = Array.from({ length: 22 }, (_, i) => ({ x: Math.random(), y: Math.random(), z: 0.3 + Math.random() * 0.7, ph: Math.random() * 6.28, c: ["#ffffff", "#5aa83a", "#ce2939", "#5be3d9"][i % 4] }));
-  let t0 = performance.now(), last = 0, scrollP = 0, ease = 0;
   // x, y (screen fractions), scale, opacity for each section
   const SPOTS = [[0.72, 0.5, 1, 1], [0.86, 0.8, 0.42, 0.95], [0.88, 0.18, 0.3, 0.6], [0.1, 0.86, 0.38, 0.7], [0.9, 0.86, 0.38, 0.7], [0.13, 0.34, 0.4, 0.9]];
   const SPOTS_M = [[0.68, 0.15, 0.7, 1], [0.82, 0.88, 0.4, 0.5], [0.85, 0.1, 0.3, 0.35], [0.15, 0.92, 0.35, 0.4], [0.85, 0.92, 0.35, 0.4], [0.5, 0.16, 0.45, 0.9]];
-  const spot = { x: 0.72, y: 0.5, s: 1, a: 1 };
-  if (innerWidth <= 900) Object.assign(spot, { x: 0.68, y: 0.15, s: 0.7 });
-  function focusFloat() {
-    const mid = innerHeight / 2, c = panels.map(p => { const r = p.getBoundingClientRect(); return Math.min(Math.max(mid, r.top), r.bottom) - mid + (r.top + r.bottom) / 2 - mid; });
-    const cs = panels.map(p => { const r = p.getBoundingClientRect(); return (r.top + r.bottom) / 2; });
-    for (let i = 0; i < cs.length - 1; i++) if (mid >= cs[i] && mid <= cs[i + 1]) return i + (mid - cs[i]) / (cs[i + 1] - cs[i]);
-    return mid < cs[0] ? 0 : cs.length - 1;
-  }
+  const spot = innerWidth <= 900 ? { x: 0.68, y: 0.15, s: 0.7, a: 1 } : { x: 0.72, y: 0.5, s: 1, a: 1 };
+  const t0 = performance.now(); let prev = t0, ease = 0, lastRender = -1e9, lastSmall = -1e9;
   function frame(now) {
-    if (now - last > 33 || reduce) {
-      last = now;
-      const t = reduce ? 0 : (now - t0) / 1000;
-      const max = Math.max(1, document.documentElement.scrollHeight - innerHeight);
-      scrollP = scrollY / max; ease += (scrollP - ease) * 0.08;
-      ctx.clearRect(0, 0, W, H);
-      const night = document.body.dataset.sky === "night", wide = W > 900;
-      // distant islands
-      draw(small[0], W * (0.16 + ease * 0.1), H * (0.24 - ease * 0.1), Math.min(W, H) * 0.012, t * 0.15 + 1, 0.5, 0.45, night);
-      draw(small[1], W * (0.86 - ease * 0.2), H * (0.7 - ease * 0.3), Math.min(W, H) * 0.01, -t * 0.2, 0.5, 0.4, night);
-      // motes
-      motes.forEach(m => {
-        const y = ((m.y - t * 0.01 * m.z - ease * 0.4 * m.z) % 1 + 1) % 1, x = m.x + Math.sin(t * 0.4 + m.ph) * 0.01;
-        const s = 4 + m.z * 8; ctx.globalAlpha = 0.25 + m.z * 0.35; ctx.fillStyle = m.c;
-        ctx.save(); ctx.translate(x * W, y * H); ctx.rotate(t * 0.3 * m.z + m.ph); ctx.fillRect(-s / 2, -s / 2, s, s); ctx.restore();
-      });
-      ctx.globalAlpha = 1;
-      // the main island moves to a free corner of each section
-      const fi = focusFloat(); const lo = Math.floor(fi), hi = Math.min(SPOTS.length - 1, lo + 1), k = fi - lo;
-      const A = (wide ? SPOTS : SPOTS_M)[Math.min(lo, SPOTS.length - 1)], B = (wide ? SPOTS : SPOTS_M)[hi];
-      const mix = (a, b) => a + (b - a) * k;
-      spot.x += (mix(A[0], B[0]) - spot.x) * 0.08; spot.y += (mix(A[1], B[1]) - spot.y) * 0.08;
-      spot.s += (mix(A[2], B[2]) - spot.s) * 0.08; spot.a += (mix(A[3], B[3]) - spot.a) * 0.08;
-      const s = Math.min(W, H) * (wide ? 0.034 : 0.03) * spot.s;
-      draw(mainFaces, W * spot.x, H * spot.y + Math.sin(t * 0.8) * 8, s, t * 0.12 + 0.6, 0.52, spot.a, night);
+    const dt = Math.min(64, now - prev); prev = now;
+    const t = reduce ? 0 : (now - t0) / 1000, k8 = 1 - Math.exp(-dt / 200);
+    const night = document.body.dataset.sky === "night", wide = W > 900;
+    const fi = SHU.focusFloat();
+    ease += (fi / (panels.length - 1) - ease) * k8;
+    // the main island moves to a free spot of each section
+    const S = wide ? SPOTS : SPOTS_M, lo = Math.min(S.length - 1, Math.floor(fi)), hi = Math.min(S.length - 1, lo + 1), k = fi - lo;
+    const mix = j => S[lo][j] + (S[hi][j] - S[lo][j]) * k;
+    spot.x += (mix(0) - spot.x) * k8; spot.y += (mix(1) - spot.y) * k8; spot.s += (mix(2) - spot.s) * k8; spot.a += (mix(3) - spot.a) * k8;
+    const base = Math.min(W, H) * (wide ? 0.034 : 0.03);
+    // re-draw the islands' rotation at about 30 and 15 frames a second; placing them happens every frame
+    if (main.dirty || main.lastNight !== night || now - lastRender > 32) { render(main, t * 0.12 + 0.6, base, night); lastRender = now; }
+    if (small[0].dirty || small[0].lastNight !== night || now - lastSmall > 64) {
+      render(small[0], t * 0.15 + 1, Math.min(W, H) * 0.012, night); render(small[1], -t * 0.2, Math.min(W, H) * 0.01, night); lastSmall = now;
     }
+    ctx.globalAlpha = 1; ctx.clearRect(0, 0, W, H);
+    place(small[0], W * (0.16 + ease * 0.1), H * (0.24 - ease * 0.1), 1, 0.45);
+    place(small[1], W * (0.86 - ease * 0.2), H * (0.7 - ease * 0.3), 1, 0.4);
+    for (const m of motes) {
+      const y = ((m.y - t * 0.01 * m.z - ease * 0.4 * m.z) % 1 + 1) % 1, x = m.x + Math.sin(t * 0.4 + m.ph) * 0.01;
+      const sz = 4 + m.z * 8, a = t * 0.3 * m.z + m.ph, c = Math.cos(a), sn = Math.sin(a);
+      ctx.globalAlpha = 0.25 + m.z * 0.35; ctx.fillStyle = m.c;
+      ctx.setTransform(dpr * c, dpr * sn, -dpr * sn, dpr * c, x * W * dpr, y * H * dpr); ctx.fillRect(-sz / 2, -sz / 2, sz, sz);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    place(main, W * spot.x, H * spot.y + Math.sin(t * 0.8) * 8, spot.s, spot.a);
+    ctx.globalAlpha = 1;
     if (!reduce) requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  addEventListener("resize", () => requestAnimationFrame(frame));
+  if (reduce) { addEventListener("scroll", () => requestAnimationFrame(frame), { passive: true }); addEventListener("resize", () => requestAnimationFrame(frame)); }
 })();
 </script>
-<script>document.querySelectorAll('.design-switch a').forEach(function(a){a.addEventListener('click',function(){try{localStorage.setItem('shu-design',a.dataset.design)}catch(e){}})})</script>
+
 </body>
 </html>
