@@ -1,0 +1,616 @@
+<!doctype html><html lang="hu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>html,body{margin:0}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style></head><body><title>Jerry Trónterem</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap">
+<style>
+/* Layout: one throne card (who rules now) beside the queue, the whole term as a ribbon underneath. Night throne room, single dark theme. */
+:root {
+  --ground: #0f1220;
+  --surface: #161a2c;
+  --raise: #1d2238;
+  --line: #2a3050;
+  --text: #eef0f8;
+  --muted: #a3a9c6;
+  --gold: #e8bd52;
+  --gold-ink: #241a02;
+  --live: #5fd38a;
+  --f: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--ground); }
+body {
+  background: var(--ground); color: var(--text); font: 400 15px/1.5 var(--f);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px; -webkit-font-smoothing: antialiased;
+}
+::selection { background: var(--gold); color: var(--gold-ink); }
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 20px; }
+.ic { width: 20px; height: 20px; flex: none; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 6px; }
+
+header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.mark { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+.mark i { display: grid; grid-template-columns: repeat(3, 6px); gap: 0; height: 18px; }
+.mark i b { display: block; height: 18px; }
+.mark i b:nth-child(1) { background: #c8283a; } .mark i b:nth-child(2) { background: #f4f4f4; } .mark i b:nth-child(3) { background: #2f6b43; }
+.mark span { font-weight: 800; font-stretch: 112%; letter-spacing: .02em; }
+header h1 { margin: 0; font-size: 15px; font-weight: 500; color: var(--muted); }
+header .sp { flex: 1; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--raise); cursor: pointer;
+  transition: transform 160ms var(--ease), background-color 160ms var(--ease);
+}
+.btn:hover { background: #252b47; }
+.btn:active { transform: scale(0.97); }
+.btn.gold { background: var(--gold); color: var(--gold-ink); border-color: transparent; font-weight: 700; }
+.btn.gold:hover { background: #f3cb66; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: 1fr; } }
+
+.throne {
+  --m: var(--gold);
+  position: relative; overflow: hidden; border-radius: 20px; padding: 28px clamp(20px, 4vw, 36px) 28px;
+  background: radial-gradient(120% 90% at 85% -10%, color-mix(in oklab, var(--m) 32%, transparent), transparent 60%), var(--surface);
+  border: 1px solid color-mix(in oklab, var(--m) 30%, var(--line));
+  display: grid; gap: 18px;
+}
+.throne .top { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; flex-wrap: wrap; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; background: color-mix(in oklab, var(--m) 22%, transparent); color: color-mix(in oklab, var(--m) 55%, white); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--live); box-shadow: 0 0 0 3px color-mix(in oklab, var(--live) 25%, transparent); }
+.who { display: flex; align-items: center; gap: 18px; }
+.seat { width: 76px; height: 76px; flex: none; border-radius: 18px; display: grid; place-items: center; background: color-mix(in oklab, var(--m) 26%, var(--raise)); color: color-mix(in oklab, var(--m) 50%, white); position: relative; }
+.seat .face { width: 48px; height: 48px; border-radius: 6px; box-shadow: 0 4px 12px -4px rgba(0,0,0,.6); }
+.face { image-rendering: pixelated; display: block; flex: none; }
+.seat .ic.q, .q .sq .ic { width: 22px; height: 22px; }
+.seat .crown { position: absolute; top: -13px; left: 50%; width: 30px; height: 30px; transform: translateX(-50%) rotate(-8deg); color: var(--gold); fill: color-mix(in oklab, var(--gold) 35%, transparent); }
+.who h2 { margin: 0; font-size: clamp(44px, 8vw, 84px); line-height: .9; font-weight: 800; font-stretch: 118%; letter-spacing: -0.02em; text-wrap: balance; }
+.who p { margin: 6px 0 0; color: var(--muted); }
+.clock { display: grid; gap: 8px; }
+.clock .row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.clock .big { font-size: clamp(28px, 4.4vw, 40px); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+.clock small { color: var(--muted); font-size: 14px; }
+.bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--m); transform-origin: left; transform: scaleX(0); transition: transform 900ms linear; }
+.tip { margin: 0; padding: 12px 14px; border-radius: 12px; background: color-mix(in oklab, var(--m) 12%, var(--raise)); }
+.tip b { color: color-mix(in oklab, var(--m) 50%, white); }
+.event { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-radius: 12px; border: 1px dashed color-mix(in oklab, var(--m) 55%, var(--line)); }
+.perks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.perks li { padding: 12px 14px; border-radius: 12px; background: var(--raise); }
+.perks b { display: block; font-weight: 700; margin-bottom: 2px; }
+.perks span { color: var(--muted); font-size: 14px; }
+.note { margin: 0; color: var(--muted); font-size: 13px; }
+
+/* Unknown seat: quick pick */
+.pick { display: grid; gap: 10px; }
+.pick h3 { margin: 0; font-size: 17px; }
+.pick p { margin: 0; color: var(--muted); font-size: 14px; }
+.pick .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 520px) { .pick .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pick button { --m: var(--gold); display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--raise); cursor: pointer; text-align: left; transition: transform 160ms var(--ease), border-color 160ms var(--ease); }
+.pick button:hover { border-color: var(--m); }
+.pick button:active { transform: scale(0.97); }
+.pick button .face { width: 32px; height: 32px; border-radius: 4px; }
+.pick button small { display: block; color: var(--muted); font-size: 12px; }
+
+aside { display: grid; gap: 14px; }
+.panel { border-radius: 16px; background: var(--surface); border: 1px solid var(--line); padding: 18px; display: grid; gap: 12px; }
+.panel h3 { margin: 0; font-size: 15px; font-weight: 700; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.panel h3 small { color: var(--muted); font-weight: 400; font-size: 13px; }
+.q { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.q li { --m: var(--muted); display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px; border-radius: 12px; background: var(--raise); }
+.q .sq .face { width: 28px; height: 28px; border-radius: 4px; }
+.q .sq { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: color-mix(in oklab, var(--m) 24%, var(--ground)); color: color-mix(in oklab, var(--m) 55%, white); }
+.q b { display: block; font-weight: 700; }
+.q span { color: var(--muted); font-size: 13px; }
+.q em { font-style: normal; font-variant-numeric: tabular-nums; font-size: 14px; color: var(--muted); text-align: right; }
+.always { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 14px; }
+.always b { color: var(--gold); }
+.always span { color: var(--muted); }
+
+/* Ribbon: the whole term, one segment per window, width = duration */
+.ribbon { border-radius: 16px; background: var(--surface); border: 1px solid var(--line); padding: 18px; display: grid; gap: 12px; }
+.ribbon h3 { margin: 0; font-size: 15px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.ribbon h3 small { color: var(--muted); font-weight: 400; font-size: 13px; }
+.track-wrap { overflow-x: auto; padding-bottom: 4px; }
+.track { position: relative; display: flex; gap: 3px; min-width: 760px; padding-top: 22px; }
+.seg { --m: #3a4060; flex: 6 1 0; height: 54px; border: 0; border-radius: 8px; cursor: pointer; padding: 6px; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; background: color-mix(in oklab, var(--m) 40%, var(--ground)); color: color-mix(in oklab, var(--m) 30%, white); transition: transform 160ms var(--ease), opacity 160ms var(--ease); text-align: left; }
+.seg.short { flex-grow: 4; }
+.seg.past { opacity: .4; }
+.seg.unk { background: repeating-linear-gradient(135deg, var(--raise) 0 6px, var(--surface) 6px 12px); color: var(--muted); }
+.seg:hover { transform: translateY(-2px); }
+.seg.sel { outline: 2px solid var(--gold); outline-offset: 2px; }
+.seg .ic, .seg .face { width: 18px; height: 18px; border-radius: 2px; }
+.seg span { font-size: 11px; font-variant-numeric: tabular-nums; }
+.now { position: absolute; top: 0; bottom: -4px; left: 0; width: 2px; background: var(--gold); border-radius: 1px; will-change: transform; pointer-events: none; }
+.now::before { content: "most"; position: absolute; top: 0; left: 5px; font-size: 11px; font-weight: 700; color: var(--gold); }
+.days { display: flex; gap: 3px; min-width: 760px; color: var(--muted); font-size: 12px; }
+.days span { flex: var(--w) 1 0; border-top: 1px solid var(--line); padding-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Order editor drawer */
+.drawer { border-radius: 16px; background: var(--surface); border: 1px solid var(--gold); padding: 20px; display: grid; gap: 14px; }
+.drawer h3 { margin: 0; font-size: 18px; }
+.drawer > p { margin: 0; color: var(--muted); max-width: 70ch; }
+.ed-rows { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.ed-row { display: grid; gap: 6px; padding: 12px; border-radius: 12px; background: var(--raise); }
+.ed-when { display: flex; justify-content: space-between; font-size: 14px; }
+.ed-when span { color: var(--muted); }
+select, input { min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--ground); padding: 0 10px; width: 100%; }
+.ed-min { display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 2fr); gap: 8px 12px; align-items: center; }
+@media (max-width: 640px) { .ed-min { grid-template-columns: 1fr; } }
+.ed-min label { font-size: 14px; color: var(--muted); }
+.ed-actions { display: flex; gap: 10px; }
+.ed-actions button { min-height: 40px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--line); background: var(--raise); cursor: pointer; }
+.ed-actions .ed-save { background: var(--gold); color: var(--gold-ink); border-color: transparent; font-weight: 700; }
+.ed-msg { margin: 0; min-height: 1.5em; color: var(--live); font-size: 14px; }
+.src { color: var(--muted); font-size: 13px; margin: 0; }
+.src a { color: var(--text); text-underline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { *, *::before { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <a class="mark" href="https://ydior7331.github.io/skyblock-hungary/"><i><b></b><b></b><b></b></i><span>SHU</span></a>
+    <h1>Mayor Jerry, Perkpocalypse, Year 521</h1>
+    <span class="sp"></span>
+    <button class="btn" id="sound" type="button" aria-pressed="false">Hang váltáskor: ki</button>
+    <button class="btn gold" id="edit" type="button" aria-expanded="false" aria-controls="drawer">Sorrend beállítása</button>
+  </header>
+
+  <section class="drawer" id="drawer" hidden>
+    <h3>A kör sorrendje</h3>
+    <p>A hat jelölt egy kevert sorrendben jön, és ez a sorrend ismétlődik. Elég egyszer beírni, amit a játék mutat: a /calendar listázza a Mining Fiesta és a Fishing Festival kezdetét, ebből Cole és Marina helye kiderül. Ha öt hely megvan, a hatodikat kitöltjük.</p>
+    <div id="editor"></div>
+  </section>
+
+  <div class="main">
+    <section class="throne" id="throne" aria-live="polite"></section>
+    <aside>
+      <div class="panel"><h3>Következik <small id="qn"></small></h3><ul class="q" id="queue"></ul></div>
+      <div class="panel"><h3>Jerry perkjei <small>végig aktívak</small></h3><ul class="always" id="always"></ul></div>
+    </aside>
+  </div>
+
+  <section class="ribbon">
+    <h3>Mind a 21 kör <small id="rb-note">Kattints egy körre az előnézethez. Időpontok magyar idő szerint.</small></h3>
+    <div class="track-wrap"><div class="track" id="track"></div><div class="days" id="days"></div></div>
+  </section>
+  <p class="src">Időpontok: a Year 521 választás vége (2026. okt. 20. 15:15 UTC) és a 6 órás váltás alapján számolva. Perkek: <a href="https://hypixelskyblock.minecraft.wiki/w/Candidate_Jerry/Perkpocalypse" target="_blank" rel="noopener">Hypixel SkyBlock Wiki</a>. <span id="shared"></span></p>
+</div>
+
+<script>
+/* SHU Perkpocalypse core: schedule math, mayor data, shared order store.
+   Mayor Jerry, Year 521. Election ended Tue 20 Oct 2026 15:15 UTC.
+   Perkpocalypse swaps the active candidate every 6 real hours (18 SkyBlock days).
+   A SkyBlock year is 124 hours, so the term has 21 windows and the last one lasts 4 hours.
+   The 6 candidates repeat in one shuffled order, so the first 3 get 4 windows each. */
+var PK = (function () {
+  var H = 3600e3;
+  var START = Date.UTC(2026, 9, 20, 15, 15);
+  var TERM = 124 * H;
+  var SLOT = 6 * H;
+  var END = START + TERM;
+  var COUNT = Math.ceil(TERM / SLOT);
+
+  var TZ = "Europe/Budapest";
+  var fTime = new Intl.DateTimeFormat("hu-HU", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
+  var fDay = new Intl.DateTimeFormat("hu-HU", { timeZone: TZ, weekday: "long" });
+  var fDate = new Intl.DateTimeFormat("hu-HU", { timeZone: TZ, month: "short", day: "numeric" });
+  var fKey = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" });
+
+  var MAYORS = {
+    aatrox: {
+      name: "Aatrox", area: "Slayer", icon: "sword", color: "#c8283a",
+      tip: "Slayer bossok: fél áron indul a quest, több XP és ritka drop.",
+      perks: [
+        { n: "SLASHED Pricing", d: "A Slayer questek indítása fél áron megy." },
+        { n: "Slayer XP Buff", d: "+25% Slayer XP minden bossból." },
+        { n: "Pathfinder", d: "1,2x esély a Magic Find által befolyásolt Slayer boss dropokra." }
+      ]
+    },
+    cole: {
+      name: "Cole", area: "Bányászat", icon: "pick", color: "#1f8f86",
+      tip: "Mining Fiesta: dupla drop és extra loot. Most érdemes forge-ot is indítani.",
+      event: "Mining Fiesta",
+      perks: [
+        { n: "Mining Fiesta", d: "2x drop és egyedi loot (Refined Minerals, Glossy Gemstone), +75 Mining Wisdom. Jerry alatt 15 perccel a váltás után indul." },
+        { n: "Mining XP Buff", d: "+60 Mining Wisdom a publikus szigeteken." },
+        { n: "Molten Forge", d: "25%-kal rövidebb forge idő. Csak az ilyenkor indított forge-okra hat." },
+        { n: "Prospection", d: "A bányász minionok 25%-kal gyorsabban dolgoznak." }
+      ]
+    },
+    diana: {
+      name: "Diana", area: "Pet és Mythological", icon: "paw", color: "#c98a12",
+      tip: "Griffin és Ancestral Spade: Mythological Ritual, közben a petek is gyorsabban fejlődnek.",
+      perks: [
+        { n: "Mythological Ritual", d: "Dianánál kapható a Griffin pet és az Ancestral Spade, lehet Mythological Creature-öket ásni." },
+        { n: "Pet XP Buff", d: "+35% pet XP." },
+        { n: "Sharing is Caring", d: "+2 Exp Share hely a pet menüben és +10% Exp Share arány." },
+        { n: "Huntress' Intuition", d: "+10 Tracking." }
+      ]
+    },
+    finnegan: {
+      name: "Finnegan", area: "Farming", icon: "wheat", color: "#3f8a3a",
+      tip: "Garden: több visitor és copper, rövidebb pest cooldown, nagyobb Jacob bracketek.",
+      perks: [
+        { n: "Pest Eradicator", d: "Pesthunter Phillip Farming Fortune bónusza 60 percig tart, a pestek 20%-kal gyakrabban jönnek." },
+        { n: "GOATed", d: "Jacob's Farming Contest bracketekbe 10%-kal több játékos fér be." },
+        { n: "Blooming Business", d: "A Garden visitorok gyakrabban jönnek, Fine Flourt adnak, a ritkábbak 10% extra Coppert." }
+      ],
+      note: "Finnegan Grand Feast perkjét Jerry nem kapcsolja be."
+    },
+    marina: {
+      name: "Marina", area: "Halászat", icon: "hook", color: "#2563b8",
+      tip: "Fishing Festival cápákkal, több sea creature és double hook.",
+      event: "Fishing Festival",
+      perks: [
+        { n: "Fishing Festival", d: "Cápás halász esemény egyedi Shark lootal. Jerry alatt 15 perccel a váltás után indul." },
+        { n: "Luck of the Sea 2.0", d: "+15 Sea Creature Chance." },
+        { n: "Double Trouble", d: "Minden 1 Sea Creature Chance után +0,1 Double Hook Chance." },
+        { n: "Fishing XP Buff", d: "+50 Fishing Wisdom a publikus szigeteken." }
+      ]
+    },
+    paul: {
+      name: "Paul", area: "Dungeon", icon: "door", color: "#7a4cc2",
+      tip: "Dungeon: olcsóbb reward chestek, +10 score, erősebb blessingek.",
+      perks: [
+        { n: "Marauder", d: "A dungeon reward chestek 20%-kal olcsóbbak." },
+        { n: "EZPZ", d: "+10 bónusz score minden dungeon runon." },
+        { n: "Benediction", d: "A blessingek 25%-kal erősebbek." }
+      ]
+    }
+  };
+  var KEYS = ["aatrox", "cole", "diana", "finnegan", "marina", "paul"];
+
+  var JERRY = [
+    { n: "Perkpocalypse", d: "6 óránként egy másik jelölt összes perkje aktív." },
+    { n: "Statspocalypse", d: "+10% Combat és Miscellaneous statok." },
+    { n: "Jerrypocalypse", d: "Bányászás, farmolás, favágás és mob ölés közben rejtett Jerryk bukkannak fel, Jerry Boxot dobnak. Legalább 4 óra játékidő kell a profilon." }
+  ];
+
+  /* SVG icon set: 24px grid, 1.75 stroke, round joins. */
+  var ICONS = {
+    sword: '<path d="M14.5 4.5 20 4l-.5 5.5L9 20l-3-3L16.5 6.5"/><path d="m5 14 5 5M3.5 20.5l2-2"/>',
+    pick: '<path d="M4 9c4-4 10-5 16-4-3 1-6 3-8 5"/><path d="m12 10-8 10M13 11l2 2"/>',
+    paw: '<circle cx="7" cy="9" r="1.8"/><circle cx="11" cy="6" r="1.8"/><circle cx="15.5" cy="7" r="1.8"/><circle cx="18" cy="11" r="1.8"/><path d="M8 17c0-3 2-5 4.5-5S17 15 16 18c-.6 1.8-3 1.5-4 1.2-1-.3-3 .6-3.6-.5"/>',
+    wheat: '<path d="M12 21V8"/><path d="M12 12c-2.5 0-4-1.5-4-4 2.5 0 4 1.5 4 4Zm0 0c2.5 0 4-1.5 4-4-2.5 0-4 1.5-4 4Zm0 4c-2.5 0-4-1.5-4-4 2.5 0 4 1.5 4 4Zm0 0c2.5 0 4-1.5 4-4-2.5 0-4 1.5-4 4ZM12 8c-1.5-1-2-2.5-1-5 2 1.5 2 3.5 1 5Z"/>',
+    hook: '<circle cx="15" cy="3.5" r="1.5"/><path d="M15 5v9a5 5 0 0 1-10 0v-2.5l3 2.5"/>',
+    door: '<path d="M6 21V8a6 6 0 0 1 12 0v13"/><path d="M4 21h16M10 13v2M14 13v2"/>',
+    crown: '<path d="m3 8 4.5 4L12 5l4.5 7L21 8l-2 11H5Z"/>',
+    q: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7M12 17h.01"/>'
+  };
+  function icon(name, cls) {
+    return '<svg class="' + (cls || "ic") + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || ICONS.q) + "</svg>";
+  }
+
+  /* Order: array of 6 mayor keys or null, index = position in the shuffled cycle.
+     Fill the unknown position automatically when only one is left. */
+  function normalize(order) {
+    var o = [];
+    for (var i = 0; i < 6; i++) o.push(order && KEYS.indexOf(order[i]) >= 0 ? order[i] : null);
+    var seen = {};
+    for (i = 0; i < 6; i++) { if (o[i] && seen[o[i]]) o[i] = null; else if (o[i]) seen[o[i]] = 1; }
+    var free = KEYS.filter(function (k) { return !seen[k]; });
+    var empty = o.filter(function (k) { return !k; }).length;
+    if (empty === 1 && free.length === 1) o[o.indexOf(null)] = free[0];
+    return o;
+  }
+
+  function slots(order) {
+    var o = normalize(order), out = [];
+    for (var i = 0; i < COUNT; i++) {
+      var s = START + i * SLOT, e = Math.min(s + SLOT, END);
+      out.push({ i: i, pos: i % 6, start: s, end: e, key: o[i % 6] });
+    }
+    return out;
+  }
+  function indexAt(t) {
+    if (t < START || t >= END) return -1;
+    return Math.floor((t - START) / SLOT);
+  }
+  function state(t, order) {
+    var all = slots(order), i = indexAt(t);
+    return { all: all, i: i, cur: i >= 0 ? all[i] : null, next: i >= 0 ? all[i + 1] || null : (t < START ? all[0] : null), before: t < START, after: t >= END };
+  }
+  function nextOf(key, t, order) {
+    return slots(order).filter(function (s) { return s.key === key && s.end > t; });
+  }
+
+  /* Mayor heads: the wiki sprite where the page may load outside images (GitHub Pages),
+     a 16px copy embedded here where it may not (the artifact sandbox). */
+  var FACE_FB = {"aatrox": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAACcUlEQVR4nJWRy29MYRiHf+93OXNv56rVMKRRVFxSkSAhJGywEIlIEP+CjdjY2loTCxvpwopIELEmQVAL1xSpKtN2WjPtmZkz53yX10L8AZ79s3keqq/bhv9BMQlkCkYLLuSX9pxeOzjw9MoJYZJTE2fClW5prOS9W15aMDKAVOitKsrk9LYjrXq5s30I30wkrSWW7AEIIhgvpKhV1oTDW3vZip96oBxDOCgiKMa+1rLW09SXLrFMznH4I0yXU+mSEoB1YJCqFVMij5mYEROchGZhutIm2bRDxne6ykcwAXcKKBctZ4nmXl6zFk/mEA3mfGCUtqdyCnH/7s3Jft98acjh9dX66FASZA+MQrNVGj7QOL9FwIbkPTOF1sXGELwSfuuQGdvoJ3bnbJy0QutA9H7ywkA+9eh14/q9d7cuH8xn9NXbU68/LvRW22Wld+VKlvHWd3aWB/M9xMYJz56Ify+13n2YFd5p4umvjU9fG7PNqLESS0UQ/GFm+ftsm5mZWKW0DIjTgkFERABI0N9HqbQY3qAj4+kLVdeqel13E6maK0lb536mKuMjeePZgOjfVCEIkqSn8ZGcR6bdI8sszt74sXfx8NPK9ot7CvH8fE15ePdX0IrXV2l0RF06vk7K6v2p6oPpjDJgDKw+F8XKpqPPsrVaZ2D/oR0TW+ZnZpqBCl4tl0xkbZQ0Q03ElqEgPAotZMoP6STg0Ys/H/tZ4vqjx29aXXdnuhI2TbTQDdKkJSceCiA4ARWjOIcoj76ca9nF2CyE3I85pazRjlNMgrxnIlIAAIL0yFoYB58+92JzaXG1+KtNzrKUDOuZ5b8SfwAyv0BpnDzgRQAAAABJRU5ErkJggg==", "cole": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAACyUlEQVR4nAXBu29bVRwA4PO89/q+bCexHcdJHUMeCo8AQkWgRmKEgARMCIHEAoixG2qnrh1YEEMlxICY+Afo1AoqdUFURYmqliCaljTJTWI7zn3fnMfv8H14obfGqJEKfJtcf6/V9K3XNl6gjET/DYVQx/ujuFDf/HqSnwOnWANhGIPFsmmP1R0KGoTUiDmIEsQ4BiyFBq0X6mKUi0kpEGowh9NLy62PVkME8PvdXV5zL17+jtdc7DzUWXr752taVJc3BgaTX7aO/9zDJKzxzfUep0SDkWDOtSkllBIKoUuhC6kLCQoQo3hzbSa0Ke5fmLY5bbs+w2S6HjJGl1afRwg/fvxUKfXsZKS1TkQJxozitBKaAUKF0BVHNieIMkyZEAIhJKVUSmNCjUESsFC6FApjzHyb/HT1g7hyHh3wdrvdaEzt3buVDKODJF7ozX/1xZfx2WQ4Hq7MFCErvv7+FrM5fWOtc5Q4Y0m7c7NTM53T+7oqkyo+I91ufzCYjD3L5q8ull03dy3GWEG27mz7F15569K7QXfe6/QH1iMRNYOb263l1ZWNd5KjZ3PRQfbPzb+2HqoUMSH1k/2zBop8voNVZkNMqW035qanotCx0XgHnUZocjQ+GQ2jVAmNV3pLS2Kv03Bnm+7Fl1rrS836m5/UWos7d+5aKF6oR+NhfjpMf7t3uP3v5L5uMy8IPnx7s1H3gqDW6wR+2yeEyzS2Xcu2Zuj8vB9muJm87i3PrsZ/337CgtD79POPa0Foah7mtiG8PNhVeeJ7jhU0+OK6X6ZOkcy9rEVZ/vjHD0wrfbx/6PsxdhwwiFrW8dO9KsuZAVeZMDtVRS6zVAhR5DmAYQYgTXOEEGT5jW9vFOX5g1Ryzq989n6LsizJoCpVca6rqiorA4AH/Rdnmz4hhCLzXLqLjHlQgjS4NtXHjFLLMgZhYxCAATicZP8DcuF97TC4uCIAAAAASUVORK5CYII=", "diana": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAChElEQVR4nJWMO2hUQRRA75258z67b3fdxBhQiWZNDC4khUqMEX/gH+wE7azEQhBsBUVExEJ7GytBRCwsLLQxkQiBBEUUJaLGJKAx68a4yb59v5m5FlrYeupzDnatr8L/QD7Jwc6yQLTWIiIAOEoCAP8jZZkRiIZ5YmGJAICZpRS+UgCoSOweXK+I/qiImGX66dh0Zv4eCJEBoJT3Ogo+MBJhKfCIUGsGAIGYSjTMDAwACEzGAElx+FCP6/y9uo60lufefzeGpQBjuD3wlqMsTDIGpJwnPV8GgatIGGP/NJZBG6u1Tay1Fkq+F2c2zrRLiJN3z5MQSUha8+ep79YAIFvL376GitTxvTulENbC4/FXbBuO51BnOWcMLzQ1Wo5jnaSZ77qShUNKSlrT1hb4nuf5L95ONaNm2ffo2ZMZKWVHR7C60FZrqHtjo7dOXxjo7il2x68/TB+4eOXMkYPnTp0whuv1NAmR0pQRTSvKQpXWllcaYeQ6TinIBwVwHTn/c2l6YWFudra2/Esbm2hLXevKcaZvPhxd/NXILAb5gsq18qUmNOtpuLSqVHw0PnF/5HkxFwxX+lQrJUnCxCYortq1Z9/0+3dfPn2Usc0aWkhFoSqaZOPm3r7+gcnJlyutyHFcoYjiJN6ype/G9WvDA1WuLdpaFM/FrS+k55Fri8MD1WtXr/T0bpqY+fDqxyI1oxSB1noymnmzf0e10n620t+tghwAVCobL7ef3dDdY2bfrXO9rnJnjREHq1u3dZaP7e4tF7ztQ0NuPh9xopEBmBh9cE0YyzS9/WBkdHLqbWOF5hvxeFo/CpWlZuvkpTtRmhFJQAQAYLbGIqIUolZvLDdbkeXfgWVCHod0M44AAAAASUVORK5CYII=", "finnegan": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAACUklEQVR4nJWSPWtTYRiG7+d935OcnJoTU2o+mlpppR8WbRFLBUUE3UREFwf9B04ODuIPEEcX/Qnq4KCLk4vgJIJUiopaItaYVtvYk+Tk5Jz343EQ3Hvv13Bd3DQ5sYC9TNVL/t0LR0uhCkIQCQAkiAQqkyNZav9sDgE4awcRoq6582JNMQOAyZAlfHAukJ7wGmVSJIUoMJdmYLT7+vKbzhgAM1QxUF5eOEI8QJwYaYSfMRkwGwAAW81JJiDh5VEMFG08ueErmfNkkpkHjz+n2o1VQiICiBnbv7t+Xt68teLnZNzcHqZaEcHLy1TboXbdvkm18wNNRACYuRtlmS9T7YQUXk6m2tDpxROXl2rk5bVxzY1dBibq4X/gR7tLwPShsqeES4fPVjdV1Ndfvvfrdemcs84BsI4FAYBjds4BiAdaCNFu96O+VpeWJ3NSSCmsRTrMmHnnV+9/9WGSEpGUQkoxPl66VC2qvJQMtpYZIIJz7Ac5T0kA2ljuDYQgBqxlAHkpVWenD7AxLssMOWbnrl45c2T+IICPnzbuP3xORD83OrmcUkoApJLMSKBeHz2+OPX2Q2tt/VcQ7iuGAYAg3Jfli7OHK8sLjXfvm+12xwLiTWs36sXVWvni9XMTc9PbrqBBzlhnrAZtu8LE3PTF6+eqtXLUi9+0dunksZV7187WqqNTkweaf+JWN146XC2FBQBRN1ld32qEI1Plkeb335tbnduPXik/J08tzSop+lEyU98/f3TcJPqf4v6wcP7UjN0ZxFu92UZlujbmP31Ne733XxWVJrHS9Eo2AAAAAElFTkSuQmCC", "marina": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAACHUlEQVR4nF1RPWtUURA9M3fuvrefGHkbF0yMi9mYzWoEQYwExMJCbQQ7wdof4G8RC1sbLS20sNBGC62EBddAIBEFPzYmMcF9933dsdiNBg/DNOec4cwMzc30qoG5MB9ZMbHLiPA/iEJDSRg8unMb5UDKoVmenVKvLpmoCf9MClXVNPOZKWAF1srFU5H3WrICIM0L730QyF+DSzLDLIRGWP5x5XqlVmcrRlUJZJiYCABPihgEgMcgoChQFBK7jJnCUomIvDorHJbCw5EAqtpSApp+eB8icpAbh7clAAQ9cE0o5yBmEpcVBCVVAKzKhHJgVDVJVBWkyqpgAvPEkIohotQLACNiADKsilRk3FPDY6Ww19Tyg7OLMAaqIILq+Pz/IqqCeUxxKiY1AgVEwAwAYmDN4cdBZDIFkMeXL2E0uvG+3+0uf//yafvb17vXzrej2pNXH11erA93681Wa/bEYNB/vryESoXBBkTNIFhpzyw0o1aj4Uduf3tPvTeg6XpjYTpaac82gwBFAa+C3X1s70zVa6u9ro/drzi59ZMwTDDVAtG9JF2cm1vtdd+8e4vhDnISip2ycLK32X9RTVzvGGPEUAMApGeOmGryebM/5Pw3gqMUx9TpnFtqR09PzwMFxMKalycrtZJVxX6WXd0cISuQZ4C5ubb+YWNLsjgbbGxRp6NBDXmOwj97vRaqAnBEiI4DBjagxA02trI4+wPBV+WzcZLBtwAAAABJRU5ErkJggg==", "paul": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAACfElEQVR4nJXBz2sUZxgH8O/zvO/MvrMzm9ldN6m7JlEPMdAFg9YflEiFnrzVg0ICplC8CCII/gc9FDwJnrz24B/gQRCEQgW1B0UliBAopqZtarLduJvsZnZn3ufxb/Dzodnpr/ElLKDiM9nfZqZSaAyTCxjAOBciqkWOCGnZFaLvOoZMYL3PkG0bZkADY5jhAkMg9TkBospEuYgCpugoH6BWNWGmmgsMU6NaCQ0fm0kBrP2zWxR+s9sT1SA0zDSZJCCyzEQEY8gyR4G11ohAoaIiqqLwCgNAUYgwkXWhMcwH0kopsOcXDgN4sroxyovOYNeL9LJcVWMCgM6nrqpaZmaiMDBhYAovCipEvIj36gXGsCqICAARRNXWyqE1fKyViPe/v34/9tIZDkSwszeGYqLMzFRxThVQhcLmIgQlDtNqJc1c7qUwVOR5b5CDqDH1FRON9vZERUUFjNlGtR7i2o/LGx8+dDvbqsXTe7/cv355vllrH2lmg/5///4916odbcTzzfrh1hyLQgBiU69V1zd3Hj55ozY42JxspElSjh49f7u+uTM7M+2c8yJKxOymejkNC43i5NdHLy6v3P7E9vS5k3dvLv906Yelq3fu/7b6+PmbU+cv/LnVU4KNy6WVxeNnD1Wy9y+/b2XxlflKMdxYH4xHOp2WbizNfdvcH//16rvpSmmx/ewj0Zn2Nz9fPFGfTCemqpONar028eKPte7/fTImrcYLC0f7u3vd3u54q9vf2rn1YNWCCeXAJuU4rSFKBkF05Gx7VqDDjIlyG3BEMWw2HO0P9pXJMlEcO+dCwxyGoYuiUsNRYKk/0KKgcQGVfDQOXCmMIyL6DHZYIKW8dUnUAAAAAElFTkSuQmCC"};
+  function face(key, cls) {
+    var m = MAYORS[key];
+    if (!m) return icon("q", cls ? cls + " ic" : "ic");
+    var url = "https://hypixelskyblock.minecraft.wiki/images/" + m.name + "_Sprite.png";
+    return '<img class="face' + (cls ? " " + cls : "") + '" src="' + url + '" data-fb="' + FACE_FB[key] + '" alt="" width="16" height="16" decoding="async" onerror="this.onerror=null;this.src=this.dataset.fb">';
+  }
+
+  /* Known order for Year 521, baked in so a plain web page shows it without setup. */
+  var DEFAULT_ORDER = [null, null, null, null, null, null];
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function dur(ms) {
+    ms = Math.max(0, ms);
+    var s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    return pad(h) + ":" + pad(m) + ":" + pad(s % 60);
+  }
+  function rel(ms) {
+    var m = Math.round(ms / 60000);
+    if (m < 60) return m + " perc";
+    var h = Math.floor(m / 60), r = m % 60;
+    if (h >= 24) return Math.floor(h / 24) + " nap" + (h % 24 ? " " + (h % 24) + " óra" : "");
+    return h + " óra" + (r ? " " + r + " perc" : "");
+  }
+  function time(t) { return fTime.format(t); }
+  function day(t) { return fDay.format(t); }
+  function date(t) { return fDate.format(t); }
+  function dayKey(t) { return fKey.format(t); }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  /* Google Calendar template link for one window. */
+  function gcal(slot) {
+    var m = MAYORS[slot.key];
+    function z(t) { return new Date(t).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, ""); }
+    var title = "Perkpocalypse: " + (m ? m.name + " (" + m.area + ")" : "ismeretlen jelölt");
+    var details = m ? m.perks.map(function (p) { return p.n + ": " + p.d; }).join("\n") : "";
+    return "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent(title) +
+      "&dates=" + z(slot.start) + "/" + z(slot.end) + "&details=" + encodeURIComponent(details + "\n\nSkyblock Hungary (SHU)");
+  }
+
+  /* Shared order store. In the artifact it lives in the db capability so one
+     guild member can fill it in for everyone; otherwise it stays in this browser. */
+  function store(onChange) {
+    var LS = "shu-pk-order-521";
+    var api = { order: normalize(DEFAULT_ORDER), minister: null, shared: false, canWrite: true, by: null, at: null };
+    function local() { try { var v = JSON.parse(localStorage.getItem(LS) || "null"); if (v) { api.order = normalize(v.order); api.minister = v.minister || null; } } catch (e) {} }
+    function saveLocal() { try { localStorage.setItem(LS, JSON.stringify({ order: api.order, minister: api.minister })); } catch (e) {} }
+    local();
+    var ref = null, me = null;
+    api.save = function (order, minister) {
+      api.order = normalize(order);
+      if (minister !== undefined) api.minister = minister;
+      saveLocal();
+      onChange(api);
+      if (ref && api.canWrite) {
+        return ref.set({ order: api.order, minister: api.minister, by: me, at: Date.now() }).catch(function (e) {
+          if (e && e.code === "invalid_argument") { api.canWrite = false; onChange(api); }
+        });
+      }
+      return Promise.resolve();
+    };
+    if (window.claude && claude.use) {
+      Promise.all([claude.use("db"), claude.use("user")]).then(function (r) {
+        var db = r[0], user = r[1];
+        if (!db) return;
+        ref = db.doc("year521/order");
+        api.shared = true;
+        if (user) {
+          user.id().then(function (id) { me = id; });
+          Promise.resolve(user.can ? user.can("data.write") : null).then(function (c) { if (c === false) { api.canWrite = false; onChange(api); } });
+        }
+        ref.onSnapshot(function (snap) {
+          var v = snap.exists ? snap.data() : null;
+          if (v && v.order) { api.order = normalize(v.order); api.minister = v.minister || null; api.by = v.by || null; api.at = v.at || null; saveLocal(); }
+          onChange(api);
+        }, function () { api.shared = false; onChange(api); });
+      });
+    }
+    return api;
+  }
+
+  /* Order editor: one select per cycle position, labelled with that
+     position's first window, so a member can copy what the game shows. */
+  function editor(root, st, onDone) {
+    var all = slots(st.order);
+    var html = '<div class="ed-rows">';
+    for (var p = 0; p < 6; p++) {
+      var s = all[p];
+      html += '<label class="ed-row" for="ed-' + p + '"><span class="ed-when"><b>' + cap(day(s.start)) + " " + time(s.start) + '</b><span>' + (p < 3 ? "4" : "3") + ' kör</span></span>' +
+        '<select id="ed-' + p + '" data-p="' + p + '"><option value="">Nem tudom</option>' +
+        KEYS.map(function (k) { return '<option value="' + k + '">' + MAYORS[k].name + " (" + MAYORS[k].area + ")</option>"; }).join("") + "</select></label>";
+    }
+    html += '</div><div class="ed-min"><label for="ed-min-n">Miniszter</label><input id="ed-min-n" maxlength="24" placeholder="pl. Diaz" autocomplete="off"><label for="ed-min-p">Miniszter perk</label><input id="ed-min-p" maxlength="60" placeholder="pl. Volume Trading" autocomplete="off"></div>' +
+      '<p class="ed-msg" aria-live="polite"></p><div class="ed-actions"><button type="button" class="ed-save">Mentés</button><button type="button" class="ed-clear">Törlés</button></div>';
+    root.innerHTML = html;
+    var sels = root.querySelectorAll("select"), msg = root.querySelector(".ed-msg");
+    function fill() {
+      for (var i = 0; i < 6; i++) sels[i].value = st.order[i] || "";
+      root.querySelector("#ed-min-n").value = st.minister && st.minister.name || "";
+      root.querySelector("#ed-min-p").value = st.minister && st.minister.perk || "";
+    }
+    fill();
+    function read() { var o = []; for (var i = 0; i < 6; i++) o.push(sels[i].value || null); return o; }
+    root.addEventListener("change", function (e) {
+      if (!e.target.dataset || e.target.dataset.p === undefined) return;
+      var o = read(), v = e.target.value, p = +e.target.dataset.p;
+      if (v) for (var i = 0; i < 6; i++) if (i !== p && o[i] === v) { o[i] = null; sels[i].value = ""; }
+      var n = normalize(o);
+      for (i = 0; i < 6; i++) sels[i].value = n[i] || "";
+    });
+    root.querySelector(".ed-save").addEventListener("click", function () {
+      var mn = root.querySelector("#ed-min-n").value.trim(), mp = root.querySelector("#ed-min-p").value.trim();
+      st.save(read(), mn ? { name: mn, perk: mp } : null).then(function () {
+        msg.textContent = st.shared && st.canWrite ? "Elmentve, a céh minden tagja ezt látja." : "Elmentve ebben a böngészőben.";
+        if (onDone) onDone();
+      });
+    });
+    root.querySelector(".ed-clear").addEventListener("click", function () {
+      st.save([null, null, null, null, null, null], null).then(function () { fill(); msg.textContent = "A sorrend törölve."; });
+    });
+    return { refresh: fill };
+  }
+
+  /* Live minister from the public Hypixel API. Works on a normal web page;
+     the artifact sandbox blocks outside requests, so it fails quietly there. */
+  function liveElection(cb) {
+    try {
+      fetch("https://api.hypixel.net/v2/resources/skyblock/election").then(function (r) { return r.json(); }).then(function (j) {
+        var m = j && j.mayor;
+        if (!m) return;
+        var min = m.minister;
+        cb({ mayor: m.key || (m.name || "").toLowerCase(), minister: min ? { key: (min.key || min.name || "").toLowerCase(), name: min.name, perk: min.perk && min.perk.name, desc: min.perk && min.perk.description } : null });
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
+  /* One shared 1 Hz clock, aligned to the second so every counter ticks together. */
+  function tick(fn) {
+    function run() { fn(Date.now()); setTimeout(run, 1000 - (Date.now() % 1000) + 5); }
+    run();
+  }
+
+  return {
+    START: START, END: END, SLOT: SLOT, COUNT: COUNT, MAYORS: MAYORS, KEYS: KEYS, JERRY: JERRY,
+    icon: icon, face: face, normalize: normalize, slots: slots, state: state, indexAt: indexAt, nextOf: nextOf,
+    dur: dur, rel: rel, time: time, day: day, date: date, dayKey: dayKey, cap: cap, gcal: gcal,
+    store: store, editor: editor, liveElection: liveElection, tick: tick
+  };
+})();
+
+(function () {
+  var M = PK.MAYORS, sel = null, st, lastIdx = null, soundOn = false, actx = null;
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function when(s) { return PK.cap(PK.day(s.start)) + " " + PK.time(s.start) + " - " + PK.time(s.end); }
+
+  $("always").innerHTML = PK.JERRY.map(function (p) { return "<li><b>" + p.n + "</b> <span>" + p.d + "</span></li>"; }).join("");
+
+  function throne(now, S) {
+    var s = sel !== null ? S.all[sel] : S.cur;
+    var el = $("throne");
+    if (!s) {
+      el.style.setProperty("--m", "var(--gold)");
+      el.innerHTML = S.before
+        ? '<div class="top">Jerry hivatala ' + PK.time(PK.START) + '-kor kezdődik</div><div class="clock"><span class="big" data-cd="' + PK.START + '"></span></div>'
+        : '<div class="top">Jerry hivatali ideje lejárt</div><div class="who"><div><h2>Vége</h2><p>A Year 521 Perkpocalypse ' + PK.cap(PK.day(PK.END)) + " " + PK.time(PK.END) + '-kor zárult.</p></div></div>';
+      return;
+    }
+    var live = s === S.cur, m = M[s.key];
+    el.style.setProperty("--m", m ? m.color : "var(--gold)");
+    var top = '<div class="top">' + (live ? '<span class="dot"></span> Most a trónon' : 'Előnézet') + ' <span>' + when(s) + '</span> <span class="pill">' + (s.i + 1) + '. kör / ' + PK.COUNT + '</span>' +
+      (!live ? ' <button class="btn" type="button" id="back">Vissza a mostanihoz</button>' : "") + "</div>";
+    if (!m) {
+      el.innerHTML = top + '<div class="pick"><h3>' + (live ? "Ki ül most a trónon?" : "Ki jön ekkor?") + '</h3><p>Ezt a helyet még senki nem írta be. Válaszd ki, akit a játék mutat, és a többi kör ideje is a helyére kerül.</p><div class="grid">' +
+        PK.KEYS.filter(function (k) { return st.order.indexOf(k) < 0; }).map(function (k) {
+          return '<button type="button" data-k="' + k + '" style="--m:' + M[k].color + '">' + PK.face(k) + "<span>" + M[k].name + "<small>" + M[k].area + "</small></span></button>";
+        }).join("") + "</div></div>" + (live ? clock(s) : "");
+      return;
+    }
+    var ev = "";
+    if (m.event) {
+      var es = s.start + 15 * 60e3;
+      ev = '<div class="event">' + PK.icon(m.icon) + "<span><b>" + m.event + "</b> " + (now < es ? "indul " + PK.time(es) + "-kor" : now < s.end ? "most fut, " + PK.time(s.end) + "-ig" : PK.time(es) + "-kor indult") + "</span></div>";
+    }
+    el.innerHTML = top +
+      '<div class="who"><div class="seat">' + PK.icon("crown", "crown") + PK.face(s.key) + "</div><div><h2>" + m.name + "</h2><p>" + m.area + " perkek, mind a " + m.perks.length + " aktív</p></div></div>" +
+      (live ? clock(s) : '<div class="clock"><div class="row"><small>Kezdés ennyi idő múlva</small><span class="big" data-cd="' + s.start + '"></span></div></div>') +
+      '<p class="tip"><b>Mit érdemes most csinálni?</b> ' + m.tip + "</p>" + ev +
+      '<ul class="perks">' + m.perks.map(function (p) { return "<li><b>" + p.n + "</b><span>" + p.d + "</span></li>"; }).join("") + "</ul>" +
+      (m.note ? '<p class="note">' + m.note + "</p>" : "") +
+      (st.minister ? '<p class="note">Miniszter: ' + esc(st.minister.name) + (st.minister.perk ? ", " + esc(st.minister.perk) : "") + " (az egész évben aktív)</p>" : "");
+  }
+  function clock(s) {
+    return '<div class="clock"><div class="row"><small>Váltás ' + PK.time(s.end) + '-kor, hátra:</small><span class="big" data-cd="' + s.end + '"></span></div><div class="bar"><i id="prog"></i></div></div>';
+  }
+
+  function queue(now, S) {
+    var from = S.i >= 0 ? S.i + 1 : (S.before ? 0 : PK.COUNT), list = S.all.slice(from, from + 4);
+    $("qn").textContent = list.length ? "" : "nincs több kör";
+    $("queue").innerHTML = list.map(function (s) {
+      var m = M[s.key];
+      return '<li style="--m:' + (m ? m.color : "#5b6283") + '"><span class="sq">' + PK.face(s.key) + "</span><span><b>" + (m ? m.name : "Még nem tudjuk") + "</b><span>" + when(s) + '</span></span><em data-cd="' + s.start + '"></em></li>';
+    }).join("");
+  }
+
+  function ribbon(now, S) {
+    var t = $("track");
+    t.innerHTML = S.all.map(function (s) {
+      var m = M[s.key], c = ["seg"];
+      if (s.end - s.start < PK.SLOT) c.push("short");
+      if (s.end <= now) c.push("past");
+      if (!m) c.push("unk");
+      if (sel === s.i) c.push("sel");
+      return '<button type="button" class="' + c.join(" ") + '" data-i="' + s.i + '" style="--m:' + (m ? m.color : "#3a4060") + '" aria-label="' + (s.i + 1) + ". kör, " + when(s) + ", " + (m ? m.name : "ismeretlen") + '">' + PK.face(s.key) + "<span>" + PK.time(s.start) + "</span></button>";
+    }).join("") + '<i class="now" id="now"></i>';
+    var groups = [];
+    S.all.forEach(function (s) {
+      var k = PK.dayKey(s.start), g = groups[groups.length - 1];
+      if (!g || g.k !== k) groups.push(g = { k: k, t: s.start, w: 0 });
+      g.w += (s.end - s.start) / PK.SLOT * 6;
+    });
+    $("days").innerHTML = groups.map(function (g) { return '<span style="--w:' + g.w + '">' + PK.cap(PK.day(g.t)) + ", " + PK.date(g.t) + "</span>"; }).join("");
+  }
+
+  function placeNow(now) {
+    var n = $("now"), t = $("track");
+    if (!n) return;
+    var segs = t.querySelectorAll(".seg"), i = PK.indexAt(now);
+    if (i < 0) { n.hidden = true; return; }
+    var seg = segs[i], s = PK.START + i * PK.SLOT, len = Math.min(PK.SLOT, PK.END - s);
+    n.hidden = false;
+    n.style.transform = "translateX(" + (seg.offsetLeft + seg.offsetWidth * (now - s) / len) + "px)";
+  }
+
+  function chime() {
+    if (!soundOn) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      [660, 880].forEach(function (f, k) {
+        var o = actx.createOscillator(), g = actx.createGain(), t0 = actx.currentTime + k * 0.18;
+        o.frequency.value = f; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.2, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.5);
+        o.connect(g).connect(actx.destination); o.start(t0); o.stop(t0 + 0.55);
+      });
+    } catch (e) {}
+  }
+
+  function render() {
+    var now = Date.now(), S = PK.state(now, st.order);
+    throne(now, S); queue(now, S); ribbon(now, S); update(now);
+    $("shared").textContent = st.shared ? (st.canWrite ? "A sorrend közös: amit itt beállítasz, a céh minden tagja látja." : "A sorrendet a céh tagjai töltik ki, te csak olvasod.") : "A sorrend ebben a böngészőben van mentve.";
+  }
+  function update(now) {
+    var S = PK.indexAt(now);
+    if (S !== lastIdx) { if (lastIdx !== null) { chime(); lastIdx = S; render(); return; } lastIdx = S; }
+    document.querySelectorAll("[data-cd]").forEach(function (e) { e.textContent = PK.dur(+e.dataset.cd - now); });
+    var p = $("prog");
+    if (p && S >= 0) { var s = PK.START + S * PK.SLOT, len = Math.min(PK.SLOT, PK.END - s); p.style.transform = "scaleX(" + ((now - s) / len).toFixed(4) + ")"; }
+    placeNow(now);
+  }
+
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("button");
+    if (!b) return;
+    if (b.classList.contains("seg")) { var i = +b.dataset.i; sel = (sel === i || i === PK.indexAt(Date.now())) ? null : i; render(); return; }
+    if (b.id === "back") { sel = null; render(); return; }
+    if (b.dataset.k) {
+      var S = PK.state(Date.now(), st.order), s = sel !== null ? S.all[sel] : S.cur, o = st.order.slice();
+      o[s.pos] = b.dataset.k; st.save(o); return;
+    }
+  });
+  $("edit").addEventListener("click", function () {
+    var d = $("drawer"), open = d.hidden;
+    d.hidden = !open; this.setAttribute("aria-expanded", open);
+    if (open) ed.refresh();
+  });
+  $("sound").addEventListener("click", function () {
+    soundOn = !soundOn; this.setAttribute("aria-pressed", soundOn);
+    this.textContent = "Hang váltáskor: " + (soundOn ? "be" : "ki");
+    if (soundOn) { var s = soundOn; chime(); }
+  });
+
+  st = PK.store(function () { render(); if (ed) ed.refresh(); });
+  PK.liveElection(function (e) { if (e.minister && !st.minister) { st.minister = { name: e.minister.name, perk: e.minister.perk }; render(); } });
+  var ed = PK.editor($("editor"), st, function () {});
+  render();
+  PK.tick(update);
+  window.addEventListener("resize", function () { placeNow(Date.now()); });
+})();
+</script>
+</body></html>
